@@ -1,16 +1,14 @@
 mod score;
 pub mod setup;
 
-use crate::common::{
-    time_controls, AgentTools, CommonState, RouteExplorer, SpeedControls, TripExplorer,
-};
+use crate::common::{time_controls, AgentTools, CommonState, ContextMenu, SpeedControls};
 use crate::debug::DebugMode;
 use crate::game::{State, Transition};
 use crate::render::MIN_ZOOM_FOR_DETAIL;
 use crate::ui::{PerMapUI, UI};
 use ezgui::{
     hotkey, lctrl, Color, EventCtx, EventLoopMode, GeomBatch, GfxCtx, Key, Line, ModalMenu,
-    ScreenPt, Text,
+    ScreenPt, SidebarPos, Text,
 };
 use geom::{Circle, Distance, Line, PolyLine};
 use map_model::{Map, LANE_THICKNESS};
@@ -19,6 +17,7 @@ use sim::{Sim, SimOptions, TripID};
 
 pub struct ABTestMode {
     menu: ModalMenu,
+    ctx_menu: ContextMenu,
     speed: SpeedControls,
     primary_agent_tools: AgentTools,
     secondary_agent_tools: AgentTools,
@@ -32,6 +31,8 @@ pub struct ABTestMode {
 impl ABTestMode {
     pub fn new(ctx: &mut EventCtx, ui: &mut UI, test_name: &str) -> ABTestMode {
         ui.primary.current_selection = None;
+        let speed = SpeedControls::new(ctx, ScreenPt::new(0.0, 0.0));
+        let ctx_menu = ContextMenu::new("Objects", ctx, SidebarPos::below_menu(&speed.menu, ctx));
 
         ABTestMode {
             menu: ModalMenu::new(
@@ -62,7 +63,8 @@ impl ABTestMode {
                 ],
                 ctx,
             ),
-            speed: SpeedControls::new(ctx, ScreenPt::new(0.0, 0.0)),
+            ctx_menu,
+            speed,
             primary_agent_tools: AgentTools::new(),
             secondary_agent_tools: AgentTools::new(),
             diff_trip: None,
@@ -97,12 +99,16 @@ impl State for ABTestMode {
         }
         txt.add(Line(ui.primary.sim.summary()));
         self.menu.handle_event(ctx, Some(txt));
+        self.ctx_menu.event(ctx, ui);
 
         ctx.canvas.handle_event(ctx.input);
         if ctx.redo_mouseover() {
             ui.recalculate_current_selection(ctx);
         }
-        if let Some(t) = self.common.event(ctx, ui, &mut self.menu) {
+        if let Some(t) = self
+            .common
+            .event(ctx, ui, &mut self.menu, &mut self.ctx_menu)
+        {
             return t;
         }
 
@@ -135,14 +141,10 @@ impl State for ABTestMode {
             )));
         }
 
-        if let Some(explorer) = RouteExplorer::new(ctx, ui) {
-            return Transition::Push(Box::new(explorer));
-        }
-        if let Some(explorer) = TripExplorer::new(ctx, ui) {
-            return Transition::Push(Box::new(explorer));
-        }
-
-        if let Some(t) = self.primary_agent_tools.event(ctx, ui, &mut self.menu) {
+        if let Some(t) = self
+            .primary_agent_tools
+            .event(ctx, ui, &mut self.menu, &mut self.ctx_menu)
+        {
             return t;
         }
 
@@ -163,27 +165,30 @@ impl State for ABTestMode {
                 self.diff_all = None;
             }
         } else {
-            if ui.primary.current_selection.is_none() && self.menu.action("diff all trips") {
-                self.diff_all = Some(DiffAllTrips::new(
-                    &mut ui.primary,
-                    ui.secondary.as_mut().unwrap(),
-                ));
-            } else if let Some(agent) = ui
-                .primary
-                .current_selection
-                .as_ref()
-                .and_then(|id| id.agent_id())
-            {
-                if let Some(trip) = ui.primary.sim.agent_to_trip(agent) {
-                    if ctx
-                        .input
-                        .contextual_action(Key::B, format!("Show {}'s parallel world", agent))
-                    {
-                        self.diff_trip = Some(DiffOneTrip::new(
-                            trip,
-                            &ui.primary,
-                            ui.secondary.as_ref().unwrap(),
+            match self.ctx_menu.current_focus() {
+                None => {
+                    if self.menu.action("diff all trips") {
+                        self.diff_all = Some(DiffAllTrips::new(
+                            &mut ui.primary,
+                            ui.secondary.as_mut().unwrap(),
                         ));
+                    }
+                }
+                Some(id) => {
+                    if let Some(agent) = id.agent_id() {
+                        if let Some(trip) = ui.primary.sim.agent_to_trip(agent) {
+                            if self.ctx_menu.action(
+                                Key::B,
+                                format!("Show {}'s parallel world", agent),
+                                ctx,
+                            ) {
+                                self.diff_trip = Some(DiffOneTrip::new(
+                                    trip,
+                                    &ui.primary,
+                                    ui.secondary.as_ref().unwrap(),
+                                ));
+                            }
+                        }
                     }
                 }
             }
@@ -220,6 +225,7 @@ impl State for ABTestMode {
         }
         self.menu.draw(g);
         self.speed.draw(g);
+        self.ctx_menu.draw(g, ui);
         self.primary_agent_tools.draw(g, ui);
     }
 

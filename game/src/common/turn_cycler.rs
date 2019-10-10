@@ -1,3 +1,4 @@
+use crate::common::ContextMenu;
 use crate::game::{State, Transition};
 use crate::helpers::ID;
 use crate::render::{DrawCtx, DrawOptions, DrawTurn, TrafficSignalDiagram};
@@ -12,35 +13,32 @@ pub enum TurnCyclerState {
 }
 
 impl TurnCyclerState {
-    pub fn event(&mut self, ctx: &mut EventCtx, ui: &mut UI) -> Option<Transition> {
-        match ui.primary.current_selection {
+    pub fn event(
+        &mut self,
+        ctx: &mut EventCtx,
+        ui: &mut UI,
+        ctx_menu: &mut ContextMenu,
+    ) -> Option<Transition> {
+        match ctx_menu.current_focus() {
             Some(ID::Lane(id)) if !ui.primary.map.get_turns_from_lane(id).is_empty() => {
                 if let TurnCyclerState::CycleTurns(current, idx) = self {
                     if *current != id {
                         *self = TurnCyclerState::ShowLane(id);
-                    } else if ctx
-                        .input
-                        .contextual_action(Key::Z, "cycle through this lane's turns")
-                    {
+                    } else if ctx_menu.action(Key::Z, "cycle through this lane's turns", ctx) {
                         *self = TurnCyclerState::CycleTurns(id, *idx + 1);
                     }
                 } else {
                     *self = TurnCyclerState::ShowLane(id);
-                    if ctx
-                        .input
-                        .contextual_action(Key::Z, "cycle through this lane's turns")
-                    {
+                    if ctx_menu.action(Key::Z, "cycle through this lane's turns", ctx) {
                         *self = TurnCyclerState::CycleTurns(id, 0);
                     }
                 }
             }
             Some(ID::Intersection(i)) => {
                 if let Some(ref signal) = ui.primary.map.maybe_get_traffic_signal(i) {
-                    if ctx
-                        .input
-                        .contextual_action(Key::F, "show full traffic signal diagram")
-                    {
+                    if ctx_menu.action(Key::F, "show full traffic signal diagram", ctx) {
                         ui.primary.current_selection = None;
+                        // TODO Also reset focus?
                         let (idx, _, _) =
                             signal.current_phase_and_remaining_time(ui.primary.sim.time());
                         return Some(Transition::Push(Box::new(ShowTrafficSignal {

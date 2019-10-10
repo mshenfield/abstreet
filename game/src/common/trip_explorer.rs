@@ -1,4 +1,4 @@
-use crate::common::CommonState;
+use crate::common::{CommonState, ContextMenu};
 use crate::game::{State, Transition};
 use crate::helpers::ID;
 use crate::ui::UI;
@@ -13,16 +13,12 @@ pub struct TripExplorer {
 }
 
 impl TripExplorer {
-    pub fn new(ctx: &mut EventCtx, ui: &UI) -> Option<TripExplorer> {
+    pub fn new(ctx: &mut EventCtx, ui: &UI, ctx_menu: &mut ContextMenu) -> Option<TripExplorer> {
         let map = &ui.primary.map;
-        let agent = ui
-            .primary
-            .current_selection
-            .as_ref()
-            .and_then(|id| id.agent_id())?;
+        let agent = ctx_menu.current_focus().and_then(|id| id.agent_id())?;
         let trip = ui.primary.sim.agent_to_trip(agent)?;
         let status = ui.primary.sim.trip_status(trip);
-        if !ctx.input.contextual_action(Key::T, "explore trip") {
+        if !ctx_menu.action(Key::T, "explore trip", ctx) {
             return None;
         }
 

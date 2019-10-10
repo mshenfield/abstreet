@@ -119,7 +119,10 @@ impl State for DebugMode {
         self.ctx_menu.event(ctx, ui);
 
         ctx.canvas.handle_event(ctx.input);
-        if let Some(t) = self.common.event(ctx, ui, &mut self.menu) {
+        if let Some(t) = self
+            .common
+            .event(ctx, ui, &mut self.menu, &mut self.ctx_menu)
+        {
             return t;
         }
 

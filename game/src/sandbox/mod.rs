@@ -4,9 +4,7 @@ mod spawner;
 mod time_travel;
 mod trip_stats;
 
-use crate::common::{
-    time_controls, AgentTools, CommonState, ContextMenu, RouteExplorer, SpeedControls, TripExplorer,
-};
+use crate::common::{time_controls, AgentTools, CommonState, ContextMenu, SpeedControls};
 use crate::debug::DebugMode;
 use crate::edit::EditMode;
 use crate::game::{State, Transition, WizardState};
@@ -101,7 +99,10 @@ impl State for SandboxMode {
         if ctx.redo_mouseover() {
             ui.recalculate_current_selection(ctx);
         }
-        if let Some(t) = self.common.event(ctx, ui, &mut self.menu) {
+        if let Some(t) = self
+            .common
+            .event(ctx, ui, &mut self.menu, &mut self.ctx_menu)
+        {
             return t;
         }
         if let Some(t) = self.analytics.event(
@@ -119,14 +120,11 @@ impl State for SandboxMode {
         {
             return Transition::Push(new_state);
         }
-        if let Some(explorer) = RouteExplorer::new(ctx, ui) {
-            return Transition::Push(Box::new(explorer));
-        }
-        if let Some(explorer) = TripExplorer::new(ctx, ui) {
-            return Transition::Push(Box::new(explorer));
-        }
 
-        if let Some(t) = self.agent_tools.event(ctx, ui, &mut self.menu) {
+        if let Some(t) = self
+            .agent_tools
+            .event(ctx, ui, &mut self.menu, &mut self.ctx_menu)
+        {
             return t;
         }
         if ui.primary.current_selection.is_none() && self.menu.action("start time traveling") {

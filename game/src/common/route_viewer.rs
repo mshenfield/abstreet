@@ -1,3 +1,4 @@
+use crate::common::ContextMenu;
 use crate::helpers::ID;
 use crate::ui::UI;
 use ezgui::{hotkey, Color, EventCtx, GfxCtx, Key, ModalMenu};
@@ -12,13 +13,8 @@ pub enum RouteViewer {
 }
 
 impl RouteViewer {
-    fn recalc(ui: &UI) -> RouteViewer {
-        if let Some(agent) = ui
-            .primary
-            .current_selection
-            .as_ref()
-            .and_then(|id| id.agent_id())
-        {
+    fn recalc(ui: &UI, ctx_menu: &ContextMenu) -> RouteViewer {
+        if let Some(agent) = ctx_menu.current_focus().and_then(|id| id.agent_id()) {
             if let Some(trace) = ui.primary.sim.trace_route(agent, &ui.primary.map, None) {
                 return RouteViewer::Hovering(ui.primary.sim.time(), agent, trace);
             }
@@ -26,32 +22,35 @@ impl RouteViewer {
         RouteViewer::Inactive
     }
 
-    pub fn event(&mut self, ctx: &mut EventCtx, ui: &UI, menu: &mut ModalMenu) {
+    pub fn event(
+        &mut self,
+        ctx: &mut EventCtx,
+        ui: &UI,
+        parent_menu: &mut ModalMenu,
+        ctx_menu: &mut ContextMenu,
+    ) {
         match self {
             RouteViewer::Inactive => {
-                *self = RouteViewer::recalc(ui);
+                *self = RouteViewer::recalc(ui, ctx_menu);
             }
             RouteViewer::Hovering(time, agent, _) => {
                 if *time != ui.primary.sim.time()
-                    || ui.primary.current_selection != Some(ID::from_agent(*agent))
+                    || ctx_menu.current_focus() != Some(ID::from_agent(*agent))
                 {
-                    *self = RouteViewer::recalc(ui);
+                    *self = RouteViewer::recalc(ui, ctx_menu);
                 }
 
                 if let RouteViewer::Hovering(_, agent, _) = self {
                     // If there's a current route, then there must be a trip.
                     let trip = ui.primary.sim.agent_to_trip(*agent).unwrap();
-                    if ctx
-                        .input
-                        .contextual_action(Key::R, format!("show {}'s route", agent))
-                    {
+                    if ctx_menu.action(Key::R, format!("show {}'s route", agent), ctx) {
                         *self = show_route(trip, ui);
-                        menu.add_action(hotkey(Key::R), "stop showing agent's route", ctx);
+                        parent_menu.add_action(hotkey(Key::R), "stop showing agent's route", ctx);
                     }
                 }
             }
             RouteViewer::Active(time, trip, _) => {
-                if menu.consume_action("stop showing agent's route", ctx) {
+                if parent_menu.consume_action("stop showing agent's route", ctx) {
                     *self = RouteViewer::Inactive;
                 } else if *time != ui.primary.sim.time() {
                     *self = show_route(*trip, ui);

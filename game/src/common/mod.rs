@@ -17,10 +17,8 @@ pub use self::colors::{
     ColorLegend, ObjectColorer, ObjectColorerBuilder, RoadColorer, RoadColorerBuilder,
 };
 pub use self::context_menu::ContextMenu;
-pub use self::route_explorer::RouteExplorer;
 pub use self::speed::SpeedControls;
 pub use self::time::time_controls;
-pub use self::trip_explorer::TripExplorer;
 pub use self::warp::Warping;
 use crate::game::Transition;
 use crate::helpers::ID;
@@ -49,23 +47,24 @@ impl CommonState {
         &mut self,
         ctx: &mut EventCtx,
         ui: &mut UI,
-        menu: &mut ModalMenu,
+        parent_menu: &mut ModalMenu,
+        ctx_menu: &mut ContextMenu,
     ) -> Option<Transition> {
-        if menu.action("warp") {
+        if parent_menu.action("warp") {
             return Some(Transition::Push(warp::EnteringWarp::new()));
         }
-        if menu.action("navigate") {
+        if parent_menu.action("navigate") {
             return Some(Transition::Push(Box::new(navigate::Navigator::new(ui))));
         }
-        if menu.action("shortcuts") {
+        if parent_menu.action("shortcuts") {
             return Some(Transition::Push(shortcuts::ChoosingShortcut::new()));
         }
 
         self.associated.event(ui);
-        if let Some(t) = self.turn_cycler.event(ctx, ui) {
+        if let Some(t) = self.turn_cycler.event(ctx, ui, ctx_menu) {
             return Some(t);
         }
-        if menu.action("take a screenshot") {
+        if parent_menu.action("take a screenshot") {
             return Some(Transition::KeepWithMode(
                 EventLoopMode::ScreenCaptureCurrentShot,
             ));

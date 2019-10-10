@@ -1,4 +1,4 @@
-use crate::common::{CommonState, ObjectColorer, ObjectColorerBuilder, Warping};
+use crate::common::{CommonState, ContextMenu, ObjectColorer, ObjectColorerBuilder, Warping};
 use crate::game::{State, Transition, WizardState};
 use crate::helpers::ID;
 use crate::mission::pick_time_range;
@@ -6,8 +6,8 @@ use crate::sandbox::SandboxMode;
 use crate::ui::UI;
 use abstutil::{prettyprint_usize, MultiMap, WeightedUsizeChoice};
 use ezgui::{
-    hotkey, Choice, Color, EventCtx, EventLoopMode, GfxCtx, Key, Line, ModalMenu, Text, Wizard,
-    WrappedWizard,
+    hotkey, Choice, Color, EventCtx, EventLoopMode, GfxCtx, Key, Line, ModalMenu, SidebarPos, Text,
+    Wizard, WrappedWizard,
 };
 use geom::Duration;
 use map_model::{BuildingID, IntersectionID, Map, Neighborhood};
@@ -20,6 +20,7 @@ use std::fmt;
 
 pub struct ScenarioManager {
     menu: ModalMenu,
+    ctx_menu: ContextMenu,
     common: CommonState,
     scenario: Scenario,
 
@@ -154,6 +155,7 @@ impl ScenarioManager {
                 ],
                 ctx,
             ),
+            ctx_menu: ContextMenu::new("Objects", ctx, SidebarPos::Left),
             common: CommonState::new(),
             scenario,
             trips_from_bldg,
@@ -185,11 +187,15 @@ impl State for ScenarioManager {
             )));
             self.menu.handle_event(ctx, Some(txt));
         }
+        self.ctx_menu.event(ctx, ui);
         ctx.canvas.handle_event(ctx.input);
         if ctx.redo_mouseover() {
             ui.recalculate_current_selection(ctx);
         }
-        if let Some(t) = self.common.event(ctx, ui, &mut self.menu) {
+        if let Some(t) = self
+            .common
+            .event(ctx, ui, &mut self.menu, &mut self.ctx_menu)
+        {
             return t;
         }
 
@@ -215,40 +221,44 @@ impl State for ScenarioManager {
             return Transition::Replace(Box::new(SandboxMode::new(ctx, ui)));
         }
 
-        if let Some(ID::Building(b)) = ui.primary.current_selection {
-            let from = self.trips_from_bldg.get(b);
-            let to = self.trips_to_bldg.get(b);
-            if (!from.is_empty() || !to.is_empty())
-                && ctx.input.contextual_action(Key::T, "browse trips")
-            {
-                // TODO Avoid the clone? Just happens once though.
-                let mut all_trips = from.clone();
-                all_trips.extend(to);
+        match self.ctx_menu.current_focus() {
+            Some(ID::Building(b)) => {
+                let from = self.trips_from_bldg.get(b);
+                let to = self.trips_to_bldg.get(b);
+                if (!from.is_empty() || !to.is_empty())
+                    && self.ctx_menu.action(Key::T, "browse trips", ctx)
+                {
+                    // TODO Avoid the clone? Just happens once though.
+                    let mut all_trips = from.clone();
+                    all_trips.extend(to);
 
-                return Transition::Push(make_trip_picker(
-                    self.scenario.clone(),
-                    all_trips,
-                    "building",
-                    OD::Bldg(b),
-                ));
+                    return Transition::Push(make_trip_picker(
+                        self.scenario.clone(),
+                        all_trips,
+                        "building",
+                        OD::Bldg(b),
+                    ));
+                }
             }
-        } else if let Some(ID::Intersection(i)) = ui.primary.current_selection {
-            let from = self.trips_from_border.get(i);
-            let to = self.trips_to_border.get(i);
-            if (!from.is_empty() || !to.is_empty())
-                && ctx.input.contextual_action(Key::T, "browse trips")
-            {
-                // TODO Avoid the clone? Just happens once though.
-                let mut all_trips = from.clone();
-                all_trips.extend(to);
+            Some(ID::Intersection(i)) => {
+                let from = self.trips_from_border.get(i);
+                let to = self.trips_to_border.get(i);
+                if (!from.is_empty() || !to.is_empty())
+                    && self.ctx_menu.action(Key::T, "browse trips", ctx)
+                {
+                    // TODO Avoid the clone? Just happens once though.
+                    let mut all_trips = from.clone();
+                    all_trips.extend(to);
 
-                return Transition::Push(make_trip_picker(
-                    self.scenario.clone(),
-                    all_trips,
-                    "border",
-                    OD::Border(i),
-                ));
+                    return Transition::Push(make_trip_picker(
+                        self.scenario.clone(),
+                        all_trips,
+                        "border",
+                        OD::Border(i),
+                    ));
+                }
             }
+            _ => {}
         }
 
         Transition::Keep
@@ -263,6 +273,7 @@ impl State for ScenarioManager {
         self.bldg_colors.draw(g, ui);
 
         self.menu.draw(g);
+        self.ctx_menu.draw(g, ui);
         // TODO Weird to not draw common (turn cycler), but we want the custom OSD...
 
         if let Some(ID::Building(b)) = ui.primary.current_selection {

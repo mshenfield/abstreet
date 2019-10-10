@@ -1,5 +1,7 @@
+use crate::common::route_explorer::RouteExplorer;
 use crate::common::route_viewer::RouteViewer;
-use crate::common::ColorLegend;
+use crate::common::trip_explorer::TripExplorer;
+use crate::common::{ColorLegend, ContextMenu};
 use crate::game::{Transition, WizardState};
 use crate::render::{AgentColorScheme, MIN_ZOOM_FOR_DETAIL};
 use crate::ui::UI;
@@ -28,20 +30,13 @@ impl AgentTools {
         &mut self,
         ctx: &mut EventCtx,
         ui: &UI,
-        menu: &mut ModalMenu,
+        parent_menu: &mut ModalMenu,
+        ctx_menu: &mut ContextMenu,
     ) -> Option<Transition> {
         if self.following.is_none() {
-            if let Some(agent) = ui
-                .primary
-                .current_selection
-                .as_ref()
-                .and_then(|id| id.agent_id())
-            {
+            if let Some(agent) = ctx_menu.current_focus().and_then(|id| id.agent_id()) {
                 if let Some(trip) = ui.primary.sim.agent_to_trip(agent) {
-                    if ctx
-                        .input
-                        .contextual_action(Key::F, format!("follow {}", agent))
-                    {
+                    if ctx_menu.action(Key::F, format!("follow {}", agent), ctx) {
                         self.following = Some((
                             trip,
                             ui.primary
@@ -50,7 +45,7 @@ impl AgentTools {
                                 .ok(),
                             ui.primary.sim.time(),
                         ));
-                        menu.add_action(hotkey(Key::F), "stop following agent", ctx);
+                        parent_menu.add_action(hotkey(Key::F), "stop following agent", ctx);
                     }
                 }
             }
@@ -72,22 +67,29 @@ impl AgentTools {
                     TripResult::TripDone => {
                         println!("{} is done or aborted, so no more following", trip);
                         self.following = None;
-                        menu.remove_action("stop following agent", ctx);
+                        parent_menu.remove_action("stop following agent", ctx);
                     }
                     TripResult::TripDoesntExist => {
                         println!("{} doesn't exist yet, so not following", trip);
                         self.following = None;
-                        menu.remove_action("stop following agent", ctx);
+                        parent_menu.remove_action("stop following agent", ctx);
                     }
                 }
             }
-            if self.following.is_some() && menu.consume_action("stop following agent", ctx) {
+            if self.following.is_some() && parent_menu.consume_action("stop following agent", ctx) {
                 self.following = None;
             }
         }
-        self.route_viewer.event(ctx, ui, menu);
+        self.route_viewer.event(ctx, ui, parent_menu, ctx_menu);
 
-        if menu.action("change agent colorscheme") {
+        if let Some(explorer) = RouteExplorer::new(ctx, ui, ctx_menu) {
+            return Some(Transition::Push(Box::new(explorer)));
+        }
+        if let Some(explorer) = TripExplorer::new(ctx, ui, ctx_menu) {
+            return Some(Transition::Push(Box::new(explorer)));
+        }
+
+        if parent_menu.action("change agent colorscheme") {
             return Some(Transition::Push(WizardState::new(Box::new(
                 |wiz, ctx, ui| {
                     let (_, acs) = wiz.wrap(ctx).choose("Which colorscheme for agents?", || {

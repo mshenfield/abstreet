@@ -89,7 +89,10 @@ impl State for EditMode {
             ui.recalculate_current_selection(ctx);
         }
 
-        if let Some(t) = self.common.event(ctx, ui, &mut self.menu) {
+        if let Some(t) = self
+            .common
+            .event(ctx, ui, &mut self.menu, &mut self.ctx_menu)
+        {
             return t;
         }
 
