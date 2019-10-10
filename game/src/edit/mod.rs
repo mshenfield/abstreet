@@ -12,7 +12,9 @@ use crate::render::{
 use crate::sandbox::SandboxMode;
 use crate::ui::{PerMapUI, ShowEverything, UI};
 use abstutil::Timer;
-use ezgui::{hotkey, lctrl, Choice, Color, EventCtx, GfxCtx, Key, Line, ModalMenu, Text, Wizard};
+use ezgui::{
+    hotkey, lctrl, Choice, Color, EventCtx, GfxCtx, Key, Line, ModalMenu, SidebarPos, Text, Wizard,
+};
 use map_model::{
     IntersectionID, Lane, LaneID, LaneType, Map, MapEdits, Road, RoadID, TurnID, TurnType,
 };
@@ -21,7 +23,7 @@ use std::collections::{BTreeSet, HashMap};
 pub struct EditMode {
     common: CommonState,
     menu: ModalMenu,
-    context: ContextBar,
+    ctx_menu: ContextMenu,
 }
 
 impl EditMode {
@@ -50,7 +52,7 @@ impl EditMode {
                 ],
                 ctx,
             ),
-            context: ContextBar::new(),
+            ctx_menu: ContextMenu::new("Object", ctx),
         }
     }
 }
@@ -72,7 +74,6 @@ impl State for EditMode {
                 "{} traffic signals",
                 orig_edits.traffic_signal_overrides.len()
             )));
-            self.context.add_to_prompt(&mut txt);
         }
         self.menu.handle_event(ctx, Some(txt));
 
@@ -85,8 +86,7 @@ impl State for EditMode {
         if ctx.redo_mouseover() {
             ui.recalculate_current_selection(ctx);
         }
-        self.context
-            .event(ui.primary.current_selection.clone(), &mut self.menu, ctx);
+        self.ctx_menu.event(ctx, ui);
 
         if let Some(t) = self.common.event(ctx, ui, &mut self.menu) {
             return t;
@@ -109,17 +109,16 @@ impl State for EditMode {
             return Transition::Push(WizardState::new(Box::new(load_edits)));
         }
 
-        if let Some(ID::Lane(id)) = self.context.current_focus() {
+        if let Some(ID::Lane(id)) = self.ctx_menu.current_focus() {
             // TODO Urgh, borrow checker.
             {
                 let lane = ui.primary.map.get_l(id);
                 let road = ui.primary.map.get_r(lane.parent);
                 if lane.lane_type != LaneType::Sidewalk {
                     if let Some(new_type) = next_valid_type(road, lane, &ui.primary.map) {
-                        if self.context.action(
+                        if self.ctx_menu.action(
                             Key::Space,
                             format!("toggle to {:?}", new_type),
-                            &mut self.menu,
                             ctx,
                         ) {
                             let mut new_edits = orig_edits.clone();
@@ -140,12 +139,9 @@ impl State for EditMode {
                         (LaneType::Bus, "bus", Key::T),
                     ] {
                         if can_change_lane_type(road, lane, *lt, &ui.primary.map)
-                            && self.context.action(
-                                *key,
-                                format!("change to {} lane", name),
-                                &mut self.menu,
-                                ctx,
-                            )
+                            && self
+                                .ctx_menu
+                                .action(*key, format!("change to {} lane", name), ctx)
                         {
                             let mut new_edits = orig_edits.clone();
                             new_edits.lane_overrides.insert(lane.id, *lt);
@@ -160,10 +156,7 @@ impl State for EditMode {
                 let road = ui.primary.map.get_r(lane.parent);
                 // TODO More validity checks
                 if lane.lane_type.is_for_moving_vehicles() && road.dir_and_offset(id).1 == 0 {
-                    if self
-                        .context
-                        .action(Key::F, "swap lane direction", &mut self.menu, ctx)
-                    {
+                    if self.ctx_menu.action(Key::F, "swap lane direction", ctx) {
                         let mut new_edits = orig_edits.clone();
                         new_edits.contraflow_lanes.insert(lane.id, lane.src_i);
                         apply_map_edits(&mut ui.primary, &ui.cs, ctx, new_edits);
@@ -172,12 +165,12 @@ impl State for EditMode {
             }
 
             if self
-                .context
-                .action(Key::U, "bulk edit lanes on this road", &mut self.menu, ctx)
+                .ctx_menu
+                .action(Key::U, "bulk edit lanes on this road", ctx)
             {
                 return Transition::Push(make_bulk_edit_lanes(ui.primary.map.get_l(id).parent));
             } else if orig_edits.lane_overrides.contains_key(&id)
-                && self.context.action(Key::R, "revert", &mut self.menu, ctx)
+                && self.ctx_menu.action(Key::R, "revert", ctx)
             {
                 let mut new_edits = orig_edits.clone();
                 new_edits.lane_overrides.remove(&id);
@@ -185,19 +178,17 @@ impl State for EditMode {
                 apply_map_edits(&mut ui.primary, &ui.cs, ctx, new_edits);
             }
         }
-        if let Some(ID::Intersection(id)) = self.context.current_focus() {
+        if let Some(ID::Intersection(id)) = self.ctx_menu.current_focus() {
             if ui.primary.map.maybe_get_stop_sign(id).is_some() {
-                if self.context.action(
-                    Key::E,
-                    format!("edit stop signs for {}", id),
-                    &mut self.menu,
-                    ctx,
-                ) {
+                if self
+                    .ctx_menu
+                    .action(Key::E, format!("edit stop signs for {}", id), ctx)
+                {
                     return Transition::Push(Box::new(stop_signs::StopSignEditor::new(
                         id, ctx, ui,
                     )));
                 } else if orig_edits.stop_sign_overrides.contains_key(&id)
-                    && self.context.action(Key::R, "revert", &mut self.menu, ctx)
+                    && self.ctx_menu.action(Key::R, "revert", ctx)
                 {
                     let mut new_edits = orig_edits.clone();
                     new_edits.stop_sign_overrides.remove(&id);
@@ -205,17 +196,15 @@ impl State for EditMode {
                 }
             }
             if ui.primary.map.maybe_get_traffic_signal(id).is_some() {
-                if self.context.action(
-                    Key::E,
-                    format!("edit traffic signal for {}", id),
-                    &mut self.menu,
-                    ctx,
-                ) {
+                if self
+                    .ctx_menu
+                    .action(Key::E, format!("edit traffic signal for {}", id), ctx)
+                {
                     return Transition::Push(Box::new(traffic_signals::TrafficSignalEditor::new(
                         id, ctx, ui,
                     )));
                 } else if orig_edits.traffic_signal_overrides.contains_key(&id)
-                    && self.context.action(Key::R, "revert", &mut self.menu, ctx)
+                    && self.ctx_menu.action(Key::R, "revert", ctx)
                 {
                     let mut new_edits = orig_edits.clone();
                     new_edits.traffic_signal_overrides.remove(&id);
@@ -233,7 +222,7 @@ impl State for EditMode {
 
     fn draw(&self, g: &mut GfxCtx, ui: &UI) {
         let mut opts = self.common.draw_options(ui);
-        self.context.add_to_draw_opts(&mut opts, ui);
+        self.ctx_menu.add_to_draw_opts(&mut opts, ui);
         ui.draw(g, opts, &ui.primary.sim, &ShowEverything::new());
 
         // More generally we might want to show the diff between two edits, but for now,
@@ -304,6 +293,7 @@ impl State for EditMode {
 
         self.common.draw(g, ui);
         self.menu.draw(g);
+        self.ctx_menu.draw(g);
     }
 
     fn on_destroy(&mut self, _: &mut EventCtx, ui: &mut UI) {
@@ -566,7 +556,50 @@ fn make_bulk_edit_lanes(road: RoadID) -> Box<dyn State> {
 }
 
 // TODO Move/generalize.
-// TODO Hold onto the ModalMenu.
+// This wraps the menu entirely. Not sure if everyone will want this or not.
+struct ContextMenu {
+    menu: ModalMenu,
+    title: String,
+    state: ContextBar,
+}
+
+impl ContextMenu {
+    fn new(title: &str, ctx: &EventCtx) -> ContextMenu {
+        ContextMenu {
+            menu: ModalMenu::new(title, Vec::new(), ctx).set_pos(ctx, SidebarPos::Left),
+            title: title.to_string(),
+            state: ContextBar::new(),
+        }
+    }
+
+    // Call after recalculate_current_selection.
+    fn event(&mut self, ctx: &mut EventCtx, ui: &UI) {
+        let mut txt = Text::prompt(&self.title);
+        self.state.add_to_prompt(&mut txt);
+        self.menu.handle_event(ctx, Some(txt));
+
+        self.state
+            .event(ui.primary.current_selection.clone(), &mut self.menu, ctx);
+    }
+
+    fn draw(&self, g: &mut GfxCtx) {
+        self.menu.draw(g);
+    }
+
+    fn current_focus(&self) -> Option<ID> {
+        self.state.current_focus()
+    }
+
+    fn action<S: Into<String>>(&mut self, key: Key, raw_name: S, ctx: &mut EventCtx) -> bool {
+        self.state.action(key, raw_name, &mut self.menu, ctx)
+    }
+
+    fn add_to_draw_opts(&self, opts: &mut DrawOptions, ui: &UI) {
+        self.state.add_to_draw_opts(opts, ui);
+    }
+}
+
+// TODO Rename
 enum ContextBar {
     Unfocused,
     Hovering {
@@ -711,9 +744,10 @@ impl ContextBar {
     }
 
     fn add_to_draw_opts(&self, opts: &mut DrawOptions, ui: &UI) {
-        if let Some(id) = self.current_focus() {
+        if let ContextBar::Focused { ref id, .. } = self {
+            // TODO Actually, some permanent colored outline instead
             opts.override_colors
-                .insert(id, ui.cs.get_def("focused", Color::RED.alpha(0.7)));
+                .insert(id.clone(), ui.cs.get_def("focused", Color::RED.alpha(0.7)));
         }
     }
 }

@@ -92,7 +92,9 @@ impl<T: Clone> Menu<T> {
                 });
             }
             separator_offset += canvas.line_height / 2.0;
-            separators.push(choices.last().unwrap().dy1 + canvas.line_height);
+            if let Some(ref c) = choices.last() {
+                separators.push(c.dy1 + canvas.line_height);
+            }
         }
         // The last one would be at the very bottom of the menu
         separators.pop();

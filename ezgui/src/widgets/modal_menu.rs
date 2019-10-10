@@ -51,12 +51,12 @@ impl ModalMenu {
         }
     }
 
-    pub fn set_prompt(mut self, ctx: &mut EventCtx, prompt: Text) -> ModalMenu {
+    pub fn set_prompt(mut self, ctx: &EventCtx, prompt: Text) -> ModalMenu {
         self.menu.change_prompt(prompt, ctx.canvas);
         self
     }
 
-    pub fn set_pos(mut self, ctx: &mut EventCtx, pos: SidebarPos) -> ModalMenu {
+    pub fn set_pos(mut self, ctx: &EventCtx, pos: SidebarPos) -> ModalMenu {
         self.pos = pos;
         self.rebuild_menu(ctx);
         self
@@ -84,7 +84,10 @@ impl ModalMenu {
         }
     }
 
-    pub fn add_action(&mut self, key: Option<MultiKey>, name: &str, ctx: &mut EventCtx) {
+    pub fn add_action(&mut self, key: Option<MultiKey>, name: &str, ctx: &EventCtx) {
+        if self.choice_groups.is_empty() {
+            self.choice_groups.push(Vec::new());
+        }
         self.choice_groups
             .last_mut()
             .unwrap()
@@ -92,7 +95,7 @@ impl ModalMenu {
         self.rebuild_menu(ctx);
     }
 
-    pub fn remove_action(&mut self, name: &str, ctx: &mut EventCtx) {
+    pub fn remove_action(&mut self, name: &str, ctx: &EventCtx) {
         self.choice_groups
             .last_mut()
             .unwrap()
@@ -100,7 +103,7 @@ impl ModalMenu {
         self.rebuild_menu(ctx);
     }
 
-    pub fn consume_action(&mut self, name: &str, ctx: &mut EventCtx) -> bool {
+    pub fn consume_action(&mut self, name: &str, ctx: &EventCtx) -> bool {
         if self.action(name) {
             self.remove_action(name, ctx);
             true
@@ -125,7 +128,7 @@ impl ModalMenu {
         self.menu.draw(g);
     }
 
-    fn rebuild_menu(&mut self, ctx: &mut EventCtx) {
+    fn rebuild_menu(&mut self, ctx: &EventCtx) {
         let mut menu = Menu::new(
             Text::prompt(""),
             self.choice_groups.clone(),
