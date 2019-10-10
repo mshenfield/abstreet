@@ -72,7 +72,7 @@ impl State for EditMode {
                 "{} traffic signals",
                 orig_edits.traffic_signal_overrides.len()
             )));
-            txt.add(Line("Right-click a lane or intersection to start editing"));
+            self.context.add_to_prompt(&mut txt);
         }
         self.menu.handle_event(ctx, Some(txt));
 
@@ -85,9 +85,8 @@ impl State for EditMode {
         if ctx.redo_mouseover() {
             ui.recalculate_current_selection(ctx);
         }
-        // Do this constantly, since we want to recalc after actions are done.
         self.context
-            .reset(ui.primary.current_selection.clone(), &mut self.menu, ctx);
+            .event(ui.primary.current_selection.clone(), &mut self.menu, ctx);
 
         if let Some(t) = self.common.event(ctx, ui, &mut self.menu) {
             return t;
@@ -110,7 +109,7 @@ impl State for EditMode {
             return Transition::Push(WizardState::new(Box::new(load_edits)));
         }
 
-        if let Some(ID::Lane(id)) = ui.primary.current_selection {
+        if let Some(ID::Lane(id)) = self.context.current_focus() {
             // TODO Urgh, borrow checker.
             {
                 let lane = ui.primary.map.get_l(id);
@@ -186,7 +185,7 @@ impl State for EditMode {
                 apply_map_edits(&mut ui.primary, &ui.cs, ctx, new_edits);
             }
         }
-        if let Some(ID::Intersection(id)) = ui.primary.current_selection {
+        if let Some(ID::Intersection(id)) = self.context.current_focus() {
             if ui.primary.map.maybe_get_stop_sign(id).is_some() {
                 if self.context.action(
                     Key::E,
@@ -233,12 +232,9 @@ impl State for EditMode {
     }
 
     fn draw(&self, g: &mut GfxCtx, ui: &UI) {
-        ui.draw(
-            g,
-            self.common.draw_options(ui),
-            &ui.primary.sim,
-            &ShowEverything::new(),
-        );
+        let mut opts = self.common.draw_options(ui);
+        self.context.add_to_draw_opts(&mut opts, ui);
+        ui.draw(g, opts, &ui.primary.sim, &ShowEverything::new());
 
         // More generally we might want to show the diff between two edits, but for now,
         // just show diff relative to basemap.
@@ -571,27 +567,87 @@ fn make_bulk_edit_lanes(road: RoadID) -> Box<dyn State> {
 
 // TODO Move/generalize.
 // TODO Hold onto the ModalMenu.
-struct ContextBar {
-    last_id: Option<ID>,
-    actions: Vec<(String)>,
+enum ContextBar {
+    Unfocused,
+    Hovering {
+        id: ID,
+        actions: Vec<String>,
+    },
+    Focused {
+        id: ID,
+        actions: Vec<String>,
+        hovering: Option<ID>,
+    },
 }
 
 impl ContextBar {
     fn new() -> ContextBar {
-        ContextBar {
-            last_id: None,
-            actions: Vec::new(),
+        ContextBar::Unfocused
+    }
+
+    fn current_focus(&self) -> Option<ID> {
+        match self {
+            ContextBar::Unfocused => None,
+            ContextBar::Hovering { ref id, .. } | ContextBar::Focused { ref id, .. } => {
+                Some(id.clone())
+            }
         }
     }
 
-    fn reset(&mut self, id: Option<ID>, menu: &mut ModalMenu, ctx: &mut EventCtx) {
-        if self.last_id == id {
-            return;
+    fn event(&mut self, current_selection: Option<ID>, menu: &mut ModalMenu, ctx: &mut EventCtx) {
+        match self {
+            ContextBar::Unfocused => {
+                if let Some(ref id) = current_selection {
+                    *self = ContextBar::Hovering {
+                        id: id.clone(),
+                        actions: Vec::new(),
+                    };
+                }
+            }
+            ContextBar::Hovering {
+                ref mut id,
+                ref mut actions,
+            } => {
+                if Some(id.clone()) == current_selection {
+                    if ctx.input.ctrl_left_click() {
+                        *self = ContextBar::Focused {
+                            id: id.clone(),
+                            actions: actions.drain(..).collect(),
+                            hovering: None,
+                        };
+                    }
+                } else {
+                    for action in actions.drain(..) {
+                        menu.remove_action(&action, ctx);
+                    }
+                    if let Some(other) = current_selection {
+                        *id = other;
+                    } else {
+                        *self = ContextBar::Unfocused;
+                    }
+                }
+            }
+            ContextBar::Focused {
+                ref mut id,
+                ref mut actions,
+                ref mut hovering,
+            } => {
+                *hovering = current_selection;
+                if Some(id.clone()) == hovering.clone() {
+                    *hovering = None;
+                }
+                if ctx.input.ctrl_left_click() {
+                    for action in actions.drain(..) {
+                        menu.remove_action(&action, ctx);
+                    }
+                    if let Some(other) = hovering.take() {
+                        *id = other;
+                    } else {
+                        *self = ContextBar::Unfocused;
+                    }
+                }
+            }
         }
-        for action in self.actions.drain(..) {
-            menu.remove_action(&action, ctx);
-        }
-        self.last_id = id;
     }
 
     fn action<S: Into<String>>(
@@ -601,24 +657,63 @@ impl ContextBar {
         menu: &mut ModalMenu,
         ctx: &mut EventCtx,
     ) -> bool {
-        // Did we perform some action in a prior call to action() this event round?
-        if self.last_id.is_none() {
-            return false;
-        }
-
-        //assert!(self.last_id.is_some());
         let name = raw_name.into();
-        if self.actions.contains(&name) {
-            if menu.action(&name) {
-                // We want to rebuild the possible actions afresh.
-                self.reset(None, menu, ctx);
-                return true;
-            }
-            return false;
-        }
 
-        menu.add_action(hotkey(key), &name, ctx);
-        self.actions.push(name);
-        false
+        match self {
+            ContextBar::Unfocused => panic!(
+                "action({}) when there's no focused object doesn't make sense",
+                name
+            ),
+            ContextBar::Hovering {
+                ref mut actions, ..
+            }
+            | ContextBar::Focused {
+                ref mut actions, ..
+            } => {
+                if actions.contains(&name) {
+                    if menu.action(&name) {
+                        // The world will change, so reset these.
+                        for action in actions.drain(..) {
+                            menu.remove_action(&action, ctx);
+                        }
+                        return true;
+                    }
+                } else {
+                    menu.add_action(hotkey(key), &name, ctx);
+                    actions.push(name);
+                }
+                false
+            }
+        }
+    }
+
+    fn add_to_prompt(&self, txt: &mut Text) {
+        match self {
+            ContextBar::Unfocused => {
+                txt.add(Line("Unfocused"));
+            }
+            ContextBar::Focused {
+                ref id,
+                ref hovering,
+                ..
+            } => {
+                txt.add(Line(format!("Focused on {:?}", id)));
+                if let Some(ref other) = hovering {
+                    txt.add(Line(format!("Ctrl+Click to focus on {:?} instead", other)));
+                } else {
+                    txt.add(Line("Ctrl+Click to unfocus"));
+                }
+            }
+            ContextBar::Hovering { ref id, .. } => {
+                txt.add(Line(format!("Ctrl+Click to focus on {:?}", id)));
+            }
+        }
+    }
+
+    fn add_to_draw_opts(&self, opts: &mut DrawOptions, ui: &UI) {
+        if let Some(id) = self.current_focus() {
+            opts.override_colors
+                .insert(id, ui.cs.get_def("focused", Color::RED.alpha(0.7)));
+        }
     }
 }
