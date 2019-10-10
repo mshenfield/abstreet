@@ -41,7 +41,6 @@ struct Choice<T: Clone> {
 pub enum Position {
     ScreenCenter,
     TopLeftAt(ScreenPt),
-    SomeCornerAt(ScreenPt),
     TopRightOfScreen,
 }
 
@@ -400,19 +399,6 @@ impl<T: Clone> Menu<T> {
         Some(&self.choices[idx].data)
     }
 
-    pub fn active_choices(&self) -> Vec<&T> {
-        self.choices
-            .iter()
-            .filter_map(|choice| {
-                if choice.active {
-                    Some(&choice.data)
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-
     pub fn mark_active(&mut self, label: &str, is_active: bool) {
         for choice in self.choices.iter_mut() {
             if choice.label == label {
@@ -500,7 +486,6 @@ impl<T: Clone> Menu<T> {
 impl Position {
     fn get_top_left(&self, canvas: &Canvas, menu_dims: ScreenDims) -> ScreenPt {
         match self {
-            Position::SomeCornerAt(pt) => menu_dims.top_left_for_corner(*pt, canvas),
             Position::TopLeftAt(pt) => *pt,
             Position::ScreenCenter => {
                 let mut pt = canvas.center_to_screen_pt();

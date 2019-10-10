@@ -167,18 +167,7 @@ impl CommonState {
         CommonState::draw_custom_osd(g, osd);
     }
 
-    pub fn draw_custom_osd(g: &mut GfxCtx, mut osd: Text) {
-        let keys = g.get_active_context_menu_keys();
-        if !keys.is_empty() {
-            osd.append(Line("   Hotkeys: "));
-            for (idx, key) in keys.into_iter().enumerate() {
-                if idx != 0 {
-                    osd.append(Line(", "));
-                }
-                osd.append(Line(key.describe()).fg(ezgui::HOTKEY_COLOR));
-            }
-        }
-
+    pub fn draw_custom_osd(g: &mut GfxCtx, osd: Text) {
         g.draw_blocking_text(
             &osd,
             (HorizontalAlignment::FillScreen, VerticalAlignment::Bottom),

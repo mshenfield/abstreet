@@ -39,6 +39,7 @@ impl StopSignEditor {
                 vec![vec![
                     (hotkey(Key::Escape), "quit"),
                     (hotkey(Key::R), "reset to default"),
+                    (hotkey(Key::Space), "toggle stop sign"),
                 ]],
                 ctx,
             ),
@@ -67,7 +68,7 @@ impl State for StopSignEditor {
         }
 
         if let Some(r) = self.selected_sign {
-            if ctx.input.contextual_action(Key::Space, "toggle stop sign") {
+            if self.menu.action("toggle stop sign") {
                 let mut sign = ui.primary.map.get_stop_sign(self.id).clone();
                 sign.flip_sign(r, &ui.primary.map);
                 let mut new_edits = ui.primary.map.get_edits().clone();

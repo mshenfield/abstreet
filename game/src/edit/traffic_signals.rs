@@ -42,6 +42,8 @@ impl TrafficSignalEditor {
                         "convert to dedicated pedestrian scramble phase",
                     ),
                 ],
+                // TODO It'd be nice to display current/next priority
+                vec![(hotkey(Key::Space), "toggle turn priority")],
                 vec![(hotkey(Key::Escape), "quit")],
             ],
             ctx,
@@ -106,10 +108,7 @@ impl State for TrafficSignalEditor {
                 TurnPriority::Priority => Some(TurnPriority::Banned),
             };
             if let Some(pri) = next_priority {
-                if ctx.input.contextual_action(
-                    Key::Space,
-                    format!("toggle from {:?} to {:?}", phase.get_priority(id), pri),
-                ) {
+                if self.menu.action("toggle turn priority") {
                     phase.edit_turn(ui.primary.map.get_t(id), pri);
                     change_traffic_signal(signal, self.diagram.i, ui, ctx);
                     return Transition::Keep;

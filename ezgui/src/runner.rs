@@ -1,4 +1,3 @@
-use crate::input::ContextMenu;
 use crate::{text, widgets, Canvas, Event, EventCtx, GfxCtx, Prerender, UserInput};
 use glium::glutin;
 use glium_glyph::glyph_brush::rusttype::Font;
@@ -35,7 +34,6 @@ pub enum EventLoopMode {
 pub(crate) struct State<G: GUI> {
     pub(crate) gui: G,
     pub(crate) canvas: Canvas,
-    context_menu: ContextMenu,
 }
 
 impl<G: GUI> State<G> {
@@ -46,14 +44,9 @@ impl<G: GUI> State<G> {
         prerender: &Prerender,
         program: &glium::Program,
     ) -> (State<G>, EventLoopMode, bool) {
-        // Clear out the possible keys
-        if let ContextMenu::Inactive(_) = self.context_menu {
-            self.context_menu = ContextMenu::new();
-        }
-
         // It's impossible / very unlikey we'll grab the cursor in map space before the very first
         // start_drawing call.
-        let mut input = UserInput::new(ev, self.context_menu, &mut self.canvas);
+        let mut input = UserInput::new(ev, &mut self.canvas);
         let mut gui = self.gui;
         let mut canvas = self.canvas;
         let event_mode = match panic::catch_unwind(panic::AssertUnwindSafe(|| {
@@ -79,7 +72,6 @@ impl<G: GUI> State<G> {
             Event::KeyRelease(_) | Event::Update => input.has_been_consumed(),
             _ => true,
         };
-        self.context_menu = input.context_menu.maybe_build(&self.canvas);
 
         (self, event_mode, input_used)
     }
@@ -93,14 +85,7 @@ impl<G: GUI> State<G> {
         screenshot: bool,
     ) -> Option<String> {
         let mut target = display.draw();
-        let mut g = GfxCtx::new(
-            &self.canvas,
-            &prerender,
-            &mut target,
-            program,
-            &self.context_menu,
-            screenshot,
-        );
+        let mut g = GfxCtx::new(&self.canvas, &prerender, &mut target, program, screenshot);
 
         self.canvas.start_drawing();
 
@@ -111,11 +96,6 @@ impl<G: GUI> State<G> {
             panic::resume_unwind(err);
         }
         let naming_hint = g.naming_hint.take();
-
-        // Always draw the menus last.
-        if let ContextMenu::Displaying(ref menu) = self.context_menu {
-            menu.draw(&mut g);
-        }
 
         // Flush text just once, so that GlyphBrush's internal caching works. We have to assume
         // nothing will ever cover up text.
@@ -271,17 +251,13 @@ pub fn run<G: GUI, F: FnOnce(&mut EventCtx) -> G>(settings: Settings, make_gui: 
     };
 
     let gui = make_gui(&mut EventCtx {
-        input: &mut UserInput::new(Event::NoOp, ContextMenu::new(), &mut canvas),
+        input: &mut UserInput::new(Event::NoOp, &mut canvas),
         canvas: &mut canvas,
         prerender: &prerender,
         program: &program,
     });
 
-    let state = State {
-        canvas,
-        context_menu: ContextMenu::new(),
-        gui,
-    };
+    let state = State { canvas, gui };
 
     loop_forever(
         state,

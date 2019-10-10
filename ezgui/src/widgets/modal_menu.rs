@@ -67,7 +67,7 @@ impl ModalMenu {
             panic!("Caller didn't consume modal action '{}'", action);
         }
 
-        // Example of a conflict is Escaping out of a context menu.
+        // TODO Maybe this check isn't needed now.
         if !ctx.input.event_consumed {
             match self.menu.event(ctx.input.event, ctx.canvas) {
                 InputResult::Canceled | InputResult::StillActive => {}
