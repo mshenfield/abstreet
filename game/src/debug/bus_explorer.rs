@@ -1,4 +1,4 @@
-use crate::common::CommonState;
+use crate::common::{CommonState, ContextMenu};
 use crate::game::{State, Transition, WizardState};
 use crate::helpers::ID;
 use crate::ui::UI;
@@ -11,9 +11,9 @@ pub struct BusRouteExplorer {
 }
 
 impl BusRouteExplorer {
-    pub fn new(ctx: &mut EventCtx, ui: &UI) -> Option<Box<dyn State>> {
+    pub fn new(ctx: &mut EventCtx, ui: &UI, ctx_menu: &mut ContextMenu) -> Option<Box<dyn State>> {
         let map = &ui.primary.map;
-        let routes = match ui.primary.current_selection {
+        let routes = match ctx_menu.current_focus() {
             Some(ID::BusStop(bs)) => map.get_routes_serving_stop(bs),
             _ => {
                 return None;
@@ -22,7 +22,7 @@ impl BusRouteExplorer {
         if routes.is_empty() {
             return None;
         }
-        if !ctx.input.contextual_action(Key::E, "explore bus route") {
+        if !ctx_menu.action(Key::E, "explore bus route", ctx) {
             return None;
         }
         if routes.len() == 1 {

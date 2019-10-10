@@ -7,7 +7,7 @@ mod objects;
 mod polygons;
 mod routes;
 
-use crate::common::CommonState;
+use crate::common::{CommonState, ContextMenu};
 use crate::game::{State, Transition, WizardState};
 use crate::helpers::ID;
 use crate::render::MIN_ZOOM_FOR_DETAIL;
@@ -22,6 +22,7 @@ use std::collections::HashSet;
 
 pub struct DebugMode {
     menu: ModalMenu,
+    ctx_menu: ContextMenu,
     common: CommonState,
     connected_roads: connected_roads::ShowConnectedRoads,
     objects: objects::ObjectDebugger,
@@ -38,6 +39,7 @@ impl DebugMode {
             menu: ModalMenu::new(
                 "Debug Mode",
                 vec![
+                    // TODO Change these labels dynamically
                     vec![
                         (hotkey(Key::Num1), "show/hide buildings"),
                         (hotkey(Key::Num2), "show/hide intersections"),
@@ -50,6 +52,7 @@ impl DebugMode {
                         (hotkey(Key::R), "show/hide route for all agents"),
                         (None, "show strongly-connected component roads"),
                     ],
+                    // TODO Make dynamic actions for these
                     vec![
                         (hotkey(Key::H), "unhide everything"),
                         (hotkey(Key::M), "clear OSM search results"),
@@ -70,6 +73,7 @@ impl DebugMode {
                 ],
                 ctx,
             ),
+            ctx_menu: ContextMenu::new("Object", ctx),
             common: CommonState::new(),
             connected_roads: connected_roads::ShowConnectedRoads::new(),
             objects: objects::ObjectDebugger::new(),
@@ -112,6 +116,7 @@ impl State for DebugMode {
             txt.add(Line(format!("Showing {} routes", traces.len())));
         }
         self.menu.handle_event(ctx, Some(txt));
+        self.ctx_menu.event(ctx, ui);
 
         ctx.canvas.handle_event(ctx.input);
         if let Some(t) = self.common.event(ctx, ui, &mut self.menu) {
@@ -123,16 +128,28 @@ impl State for DebugMode {
         }
 
         self.all_routes.event(ui, &mut self.menu);
-        match ui.primary.current_selection {
+
+        match self.ctx_menu.current_focus() {
             Some(ID::Lane(_)) | Some(ID::Intersection(_)) | Some(ID::ExtraShape(_)) => {
-                let id = ui.primary.current_selection.clone().unwrap();
-                if ctx
-                    .input
-                    .contextual_action(Key::H, format!("hide {:?}", id))
-                {
+                let id = self.ctx_menu.current_focus().unwrap();
+                if self.ctx_menu.action(Key::H, format!("hide {:?}", id), ctx) {
                     println!("Hiding {:?}", id);
-                    ui.primary.current_selection = None;
+                    // TODO This is buggy...
+                    ui.primary.current_selection =
+                        ui.calculate_current_selection(ctx, &ui.primary.sim, self, true);
                     self.hidden.insert(id);
+                }
+            }
+            Some(ID::Car(id)) => {
+                if self
+                    .ctx_menu
+                    .action(Key::Backspace, "forcibly kill this car", ctx)
+                {
+                    ui.primary.sim.kill_stuck_car(id, &ui.primary.map);
+                    ui.primary.sim.step(&ui.primary.map, Duration::seconds(0.1));
+                    // TODO This is buggy...
+                    ui.primary.current_selection =
+                        ui.calculate_current_selection(ctx, &ui.primary.sim, self, true);
                 }
             }
             None => {
@@ -145,21 +162,11 @@ impl State for DebugMode {
             _ => {}
         }
 
-        if let Some(ID::Car(id)) = ui.primary.current_selection {
-            if ctx
-                .input
-                .contextual_action(Key::Backspace, "forcibly kill this car")
-            {
-                ui.primary.sim.kill_stuck_car(id, &ui.primary.map);
-                ui.primary.sim.step(&ui.primary.map, Duration::seconds(0.1));
-                ui.primary.current_selection = None;
-            }
-        }
         self.connected_roads.event(ctx, ui);
-        self.objects.event(ctx, ui);
+        self.objects.event(ctx, ui, &mut self.ctx_menu);
         self.neighborhood_summary.event(ui, &mut self.menu);
 
-        if let Some(debugger) = polygons::PolygonDebugger::new(ctx, ui) {
+        if let Some(debugger) = polygons::PolygonDebugger::new(ctx, ui, &mut self.ctx_menu) {
             return Transition::Push(Box::new(debugger));
         }
 
@@ -210,13 +217,15 @@ impl State for DebugMode {
             return Transition::Push(color_picker::ColorChooser::new());
         }
 
-        if let Some(explorer) = bus_explorer::BusRouteExplorer::new(ctx, ui) {
+        if let Some(explorer) = bus_explorer::BusRouteExplorer::new(ctx, ui, &mut self.ctx_menu) {
             return Transition::PushWithMode(explorer, EventLoopMode::Animation);
         }
         if let Some(picker) = bus_explorer::BusRoutePicker::new(ui, &mut self.menu) {
             return Transition::Push(picker);
         }
-        if let Some(floodfiller) = floodfill::Floodfiller::new(ctx, ui, &mut self.menu) {
+        if let Some(floodfiller) =
+            floodfill::Floodfiller::new(ctx, ui, &mut self.menu, &mut self.ctx_menu)
+        {
             return Transition::Push(floodfiller);
         }
 
@@ -263,6 +272,7 @@ impl State for DebugMode {
 
         if !g.is_screencap() {
             self.menu.draw(g);
+            self.ctx_menu.draw(g, ui);
         }
     }
 }

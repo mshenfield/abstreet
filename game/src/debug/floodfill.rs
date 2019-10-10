@@ -1,4 +1,4 @@
-use crate::common::{RoadColorer, RoadColorerBuilder};
+use crate::common::{ContextMenu, RoadColorer, RoadColorerBuilder};
 use crate::game::{State, Transition};
 use crate::helpers::ID;
 use crate::ui::UI;
@@ -13,14 +13,15 @@ pub struct Floodfiller {
 }
 
 impl Floodfiller {
-    pub fn new(ctx: &mut EventCtx, ui: &UI, parent_menu: &mut ModalMenu) -> Option<Box<dyn State>> {
+    pub fn new(
+        ctx: &mut EventCtx,
+        ui: &UI,
+        parent_menu: &mut ModalMenu,
+        ctx_menu: &mut ContextMenu,
+    ) -> Option<Box<dyn State>> {
         let map = &ui.primary.map;
-        let (reachable_lanes, mut prompt) = if let Some(ID::Lane(l)) = ui.primary.current_selection
-        {
-            if map.get_l(l).is_driving()
-                && ctx
-                    .input
-                    .contextual_action(Key::F, "floodfill from this lane")
+        let (reachable_lanes, mut prompt) = if let Some(ID::Lane(l)) = ctx_menu.current_focus() {
+            if map.get_l(l).is_driving() && ctx_menu.action(Key::F, "floodfill from this lane", ctx)
             {
                 (
                     find_reachable_from(l, map),

@@ -334,17 +334,15 @@ impl DrawMap {
         results
     }
 
-    pub fn get_renderable(&self, id: ID) -> Box<&dyn Renderable> {
+    pub fn get_renderable<'a>(&'a self, id: ID, agents: &'a AgentCache) -> Box<&'a dyn Renderable> {
         match id {
             ID::Road(r) => Box::new(self.get_r(r)),
             ID::Lane(l) => Box::new(self.get_l(l)),
             ID::Intersection(i) => Box::new(self.get_i(i)),
-            //ID::Turn(t) => Box::new(self.get_t(t)),
+            // TODO Handle this
+            ID::Turn(_) => panic!("Implement get_renderable for {:?}", id),
             ID::Building(b) => Box::new(self.get_b(b)),
-            // TODO Handle these
-            ID::Turn(_) | ID::Car(_) | ID::Pedestrian(_) | ID::PedCrowd(_) => {
-                panic!("get_renderable for {:?} unimplemented", id)
-            }
+            ID::Car(_) | ID::Pedestrian(_) | ID::PedCrowd(_) => agents.lookup_id(id),
             ID::ExtraShape(es) => Box::new(self.get_es(es)),
             ID::BusStop(bs) => Box::new(self.get_bs(bs)),
             ID::Area(a) => Box::new(self.get_a(a)),
@@ -374,6 +372,18 @@ impl AgentCache {
             .iter()
             .map(|obj| obj.borrow())
             .collect()
+    }
+
+    // TODO Inefficient and has to make sure this exists...
+    pub fn lookup_id(&self, id: ID) -> Box<&dyn Renderable> {
+        for agents in self.agents_per_on.values() {
+            for obj in agents {
+                if obj.get_id() == id {
+                    return Box::new(obj.borrow());
+                }
+            }
+        }
+        panic!("Can't find {:?} in AgentCache", id);
     }
 
     pub fn put(&mut self, now: Duration, on: Traversable, agents: Vec<Box<dyn Renderable>>) {

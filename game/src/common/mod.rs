@@ -5,6 +5,7 @@ mod navigate;
 mod route_explorer;
 mod route_viewer;
 mod shortcuts;
+mod sidebar;
 mod speed;
 mod time;
 mod trip_explorer;
@@ -16,6 +17,7 @@ pub use self::colors::{
     ColorLegend, ObjectColorer, ObjectColorerBuilder, RoadColorer, RoadColorerBuilder,
 };
 pub use self::route_explorer::RouteExplorer;
+pub use self::sidebar::ContextMenu;
 pub use self::speed::SpeedControls;
 pub use self::time::time_controls;
 pub use self::trip_explorer::TripExplorer;

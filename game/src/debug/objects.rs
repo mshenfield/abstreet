@@ -1,3 +1,4 @@
+use crate::common::ContextMenu;
 use crate::helpers::ID;
 use crate::render::DrawMap;
 use crate::ui::PerMapUI;
@@ -11,7 +12,6 @@ use std::collections::BTreeMap;
 pub struct ObjectDebugger {
     tooltip_key_held: bool,
     debug_tooltip_key_held: bool,
-    selected: Option<ID>,
 }
 
 impl ObjectDebugger {
@@ -19,12 +19,10 @@ impl ObjectDebugger {
         ObjectDebugger {
             tooltip_key_held: false,
             debug_tooltip_key_held: false,
-            selected: None,
         }
     }
 
-    pub fn event(&mut self, ctx: &mut EventCtx, ui: &UI) {
-        self.selected = ui.primary.current_selection.clone();
+    pub fn event(&mut self, ctx: &mut EventCtx, ui: &UI, ctx_menu: &mut ContextMenu) {
         if self.tooltip_key_held {
             self.tooltip_key_held = !ctx.input.key_released(Key::LeftControl);
         } else {
@@ -42,8 +40,8 @@ impl ObjectDebugger {
                 .unimportant_key_pressed(Key::RightControl, "hold to show debug tooltips");
         }
 
-        if let Some(ref id) = self.selected {
-            if ctx.input.contextual_action(Key::D, "debug") {
+        if let Some(id) = ctx_menu.current_focus() {
+            if ctx_menu.action(Key::D, "debug", ctx) {
                 dump_debug(
                     id.clone(),
                     &ui.primary.map,
@@ -56,7 +54,7 @@ impl ObjectDebugger {
 
     pub fn draw(&self, g: &mut GfxCtx, ui: &UI) {
         if self.tooltip_key_held {
-            if let Some(ref id) = self.selected {
+            if let Some(ref id) = ui.primary.current_selection {
                 let txt = tooltip_lines(id.clone(), g, &ui.primary);
                 g.draw_mouse_tooltip(&txt);
             }
