@@ -11,9 +11,9 @@ pub struct ContextMenu {
 }
 
 impl ContextMenu {
-    pub fn new(title: &str, ctx: &EventCtx) -> ContextMenu {
+    pub fn new(title: &str, ctx: &EventCtx, pos: SidebarPos) -> ContextMenu {
         ContextMenu {
-            menu: ModalMenu::new(title, Vec::new(), ctx).set_pos(ctx, SidebarPos::Left),
+            menu: ModalMenu::new(title, Vec::new(), ctx).set_pos(ctx, pos),
             title: title.to_string(),
             state: State::new(),
         }

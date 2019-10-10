@@ -1,5 +1,5 @@
 use crate::widgets::{Menu, Position};
-use crate::{EventCtx, GfxCtx, InputResult, MultiKey, ScreenPt, Slider, Text};
+use crate::{Canvas, EventCtx, GfxCtx, InputResult, MultiKey, ScreenPt, Slider, Text};
 
 #[derive(Clone, Copy)]
 pub enum SidebarPos {
@@ -149,6 +149,9 @@ impl ModalMenu {
     pub fn get_total_width(&self) -> f64 {
         self.menu.get_total_width()
     }
+    pub fn get_bottom_left(&self, canvas: &Canvas) -> ScreenPt {
+        self.menu.get_bottom_left(canvas)
+    }
 }
 
 impl SidebarPos {
@@ -163,5 +166,11 @@ impl SidebarPos {
     // TODO Assumes the slider never moves
     pub fn below(slider: &Slider) -> SidebarPos {
         SidebarPos::At(slider.below_top_left())
+    }
+
+    // TODO Assumes the menu never moves
+    pub fn below_menu(other: &ModalMenu, ctx: &EventCtx) -> SidebarPos {
+        // TODO +1 y
+        SidebarPos::At(other.get_bottom_left(ctx.canvas))
     }
 }

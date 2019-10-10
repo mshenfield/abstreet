@@ -1,4 +1,4 @@
-use crate::common::CommonState;
+use crate::common::{CommonState, ContextMenu};
 use crate::game::{State, Transition, WizardState};
 use crate::helpers::ID;
 use crate::render::DrawOptions;
@@ -40,19 +40,20 @@ impl AgentSpawner {
         ctx: &mut EventCtx,
         ui: &mut UI,
         sandbox_menu: &mut ModalMenu,
+        ctx_menu: &mut ContextMenu,
     ) -> Option<Box<dyn State>> {
         let menu = ModalMenu::new(
             "Agent Spawner",
-            vec![vec![(hotkey(Key::Escape), "quit")]],
+            vec![vec![
+                (hotkey(Key::Escape), "quit"),
+                (hotkey(Key::F3), "end the agent here"),
+            ]],
             ctx,
         );
         let map = &ui.primary.map;
-        match ui.primary.current_selection {
+        match ctx_menu.current_focus() {
             Some(ID::Building(id)) => {
-                if ctx
-                    .input
-                    .contextual_action(Key::F3, "spawn a pedestrian starting here")
-                {
+                if ctx_menu.action(Key::F3, "spawn a pedestrian starting here", ctx) {
                     return Some(Box::new(AgentSpawner {
                         menu,
                         from: Source::Walking(WalkingSource::Bldg(id)),
@@ -60,10 +61,7 @@ impl AgentSpawner {
                     }));
                 }
                 if let Some(pos) = Position::bldg_via_driving(id, map) {
-                    if ctx
-                        .input
-                        .contextual_action(Key::F4, "spawn a car starting here")
-                    {
+                    if ctx_menu.action(Key::F4, "spawn a car starting here", ctx) {
                         return Some(Box::new(AgentSpawner {
                             menu,
                             from: Source::Driving(pos),
@@ -74,9 +72,7 @@ impl AgentSpawner {
             }
             Some(ID::Lane(id)) => {
                 if map.get_l(id).is_driving()
-                    && ctx
-                        .input
-                        .contextual_action(Key::F3, "spawn a car starting here")
+                    && ctx_menu.action(Key::F3, "spawn a car starting here", ctx)
                 {
                     return Some(Box::new(AgentSpawner {
                         menu,
@@ -84,9 +80,7 @@ impl AgentSpawner {
                         maybe_goal: None,
                     }));
                 } else if map.get_l(id).is_sidewalk()
-                    && ctx
-                        .input
-                        .contextual_action(Key::F3, "spawn a pedestrian starting here")
+                    && ctx_menu.action(Key::F3, "spawn a pedestrian starting here", ctx)
                 {
                     return Some(Box::new(AgentSpawner {
                         menu,
@@ -99,10 +93,7 @@ impl AgentSpawner {
                 }
             }
             Some(ID::Intersection(i)) => {
-                if ctx
-                    .input
-                    .contextual_action(Key::Z, "spawn agents around this intersection")
-                {
+                if ctx_menu.action(Key::Z, "spawn agents around this intersection", ctx) {
                     spawn_agents_around(i, ui, ctx);
                 }
             }
@@ -190,7 +181,7 @@ impl State for AgentSpawner {
             }
         }
 
-        if self.maybe_goal.is_some() && ctx.input.contextual_action(Key::F3, "end the agent here") {
+        if self.maybe_goal.is_some() && self.menu.action("end the agent here") {
             let mut rng = ui.primary.current_flags.sim_flags.make_rng();
             let sim = &mut ui.primary.sim;
             match (&self.from, self.maybe_goal.take().unwrap().0) {

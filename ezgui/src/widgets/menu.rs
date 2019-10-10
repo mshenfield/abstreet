@@ -483,6 +483,18 @@ impl<T: Clone> Menu<T> {
     pub fn get_total_width(&self) -> f64 {
         self.total_width
     }
+
+    pub fn get_bottom_left(&self, canvas: &Canvas) -> ScreenPt {
+        // TODO Assuming no font size changes!
+        let base_y = self.top_left.y + (self.prompt.num_lines() as f64) * canvas.line_height;
+
+        if self.hidden || self.choices.is_empty() {
+            return ScreenPt::new(self.top_left.x, base_y);
+        }
+
+        let choices_total_height = self.choices.last().as_ref().unwrap().dy1 + canvas.line_height;
+        ScreenPt::new(self.top_left.x, base_y + choices_total_height)
+    }
 }
 
 impl Position {

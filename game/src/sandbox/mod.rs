@@ -5,7 +5,7 @@ mod time_travel;
 mod trip_stats;
 
 use crate::common::{
-    time_controls, AgentTools, CommonState, RouteExplorer, SpeedControls, TripExplorer,
+    time_controls, AgentTools, CommonState, ContextMenu, RouteExplorer, SpeedControls, TripExplorer,
 };
 use crate::debug::DebugMode;
 use crate::edit::EditMode;
@@ -13,8 +13,8 @@ use crate::game::{State, Transition, WizardState};
 use crate::helpers::ID;
 use crate::ui::{ShowEverything, UI};
 use ezgui::{
-    hotkey, lctrl, Choice, EventCtx, EventLoopMode, GfxCtx, Key, Line, ModalMenu, ScreenPt, Text,
-    Wizard,
+    hotkey, lctrl, Choice, EventCtx, EventLoopMode, GfxCtx, Key, Line, ModalMenu, ScreenPt,
+    SidebarPos, Text, Wizard,
 };
 use geom::Duration;
 use sim::Sim;
@@ -28,12 +28,15 @@ pub struct SandboxMode {
     analytics: analytics::Analytics,
     common: CommonState,
     menu: ModalMenu,
+    ctx_menu: ContextMenu,
 }
 
 impl SandboxMode {
     pub fn new(ctx: &mut EventCtx, ui: &UI) -> SandboxMode {
+        let speed = SpeedControls::new(ctx, ScreenPt::new(0.0, 0.0));
+        let ctx_menu = ContextMenu::new("Objects", ctx, SidebarPos::below_menu(&speed.menu, ctx));
         SandboxMode {
-            speed: SpeedControls::new(ctx, ScreenPt::new(0.0, 0.0)),
+            speed,
             agent_tools: AgentTools::new(),
             time_travel: time_travel::InactiveTimeTravel::new(),
             trip_stats: trip_stats::TripStats::new(
@@ -76,6 +79,7 @@ impl SandboxMode {
                 ],
                 ctx,
             ),
+            ctx_menu,
         }
     }
 }
@@ -91,6 +95,7 @@ impl State for SandboxMode {
             txt.add(Line(ui.primary.sim.summary()));
             self.menu.handle_event(ctx, Some(txt));
         }
+        self.ctx_menu.event(ctx, ui);
 
         ctx.canvas.handle_event(ctx.input);
         if ctx.redo_mouseover() {
@@ -109,7 +114,9 @@ impl State for SandboxMode {
             return t;
         }
 
-        if let Some(new_state) = spawner::AgentSpawner::new(ctx, ui, &mut self.menu) {
+        if let Some(new_state) =
+            spawner::AgentSpawner::new(ctx, ui, &mut self.menu, &mut self.ctx_menu)
+        {
             return Transition::Push(new_state);
         }
         if let Some(explorer) = RouteExplorer::new(ctx, ui) {
@@ -138,7 +145,7 @@ impl State for SandboxMode {
         if self.menu.action("edit mode") {
             return Transition::Replace(Box::new(EditMode::new(ctx, ui)));
         }
-        if let Some(ID::Building(b)) = ui.primary.current_selection {
+        if let Some(ID::Building(b)) = self.ctx_menu.current_focus() {
             let cars = ui
                 .primary
                 .sim
@@ -147,9 +154,11 @@ impl State for SandboxMode {
                 .map(|p| p.vehicle.id)
                 .collect::<Vec<_>>();
             if !cars.is_empty()
-                && ctx
-                    .input
-                    .contextual_action(Key::P, format!("examine {} cars parked here", cars.len()))
+                && self.ctx_menu.action(
+                    Key::P,
+                    format!("examine {} cars parked here", cars.len()),
+                    ctx,
+                )
             {
                 return Transition::Push(WizardState::new(Box::new(move |wiz, ctx, _| {
                     let _id = wiz.wrap(ctx).choose("Examine which car?", || {
@@ -249,6 +258,7 @@ impl State for SandboxMode {
         self.common.draw(g, ui);
         self.menu.draw(g);
         self.speed.draw(g);
+        self.ctx_menu.draw(g, ui);
     }
 
     fn on_suspend(&mut self, ctx: &mut EventCtx, _: &mut UI) {

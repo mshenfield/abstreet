@@ -12,7 +12,9 @@ use crate::render::{
 use crate::sandbox::SandboxMode;
 use crate::ui::{PerMapUI, ShowEverything, UI};
 use abstutil::Timer;
-use ezgui::{hotkey, lctrl, Choice, Color, EventCtx, GfxCtx, Key, Line, ModalMenu, Text, Wizard};
+use ezgui::{
+    hotkey, lctrl, Choice, Color, EventCtx, GfxCtx, Key, Line, ModalMenu, SidebarPos, Text, Wizard,
+};
 use map_model::{
     IntersectionID, Lane, LaneID, LaneType, Map, MapEdits, Road, RoadID, TurnID, TurnType,
 };
@@ -50,7 +52,7 @@ impl EditMode {
                 ],
                 ctx,
             ),
-            ctx_menu: ContextMenu::new("Object", ctx),
+            ctx_menu: ContextMenu::new("Object", ctx, SidebarPos::Left),
         }
     }
 }

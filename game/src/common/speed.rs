@@ -9,7 +9,7 @@ const SPEED_CAP: f64 = 10.0 * 60.0;
 
 pub struct SpeedControls {
     slider: Slider,
-    menu: ModalMenu,
+    pub menu: ModalMenu,
     state: State,
 }
 

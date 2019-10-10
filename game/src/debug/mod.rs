@@ -15,7 +15,7 @@ use crate::ui::{ShowLayers, ShowObject, UI};
 use abstutil::Timer;
 use ezgui::{
     hotkey, Color, Drawable, EventCtx, EventLoopMode, GeomBatch, GfxCtx, Key, Line, ModalMenu,
-    Text, Wizard,
+    SidebarPos, Text, Wizard,
 };
 use geom::Duration;
 use std::collections::HashSet;
@@ -73,7 +73,7 @@ impl DebugMode {
                 ],
                 ctx,
             ),
-            ctx_menu: ContextMenu::new("Object", ctx),
+            ctx_menu: ContextMenu::new("Object", ctx, SidebarPos::Left),
             common: CommonState::new(),
             connected_roads: connected_roads::ShowConnectedRoads::new(),
             objects: objects::ObjectDebugger::new(),
