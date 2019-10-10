@@ -222,9 +222,12 @@ impl State for EditMode {
     }
 
     fn draw(&self, g: &mut GfxCtx, ui: &UI) {
-        let mut opts = self.common.draw_options(ui);
-        self.ctx_menu.add_to_draw_opts(&mut opts, ui);
-        ui.draw(g, opts, &ui.primary.sim, &ShowEverything::new());
+        ui.draw(
+            g,
+            self.common.draw_options(ui),
+            &ui.primary.sim,
+            &ShowEverything::new(),
+        );
 
         // More generally we might want to show the diff between two edits, but for now,
         // just show diff relative to basemap.
@@ -294,7 +297,7 @@ impl State for EditMode {
 
         self.common.draw(g, ui);
         self.menu.draw(g);
-        self.ctx_menu.draw(g);
+        self.ctx_menu.draw(g, ui);
     }
 
     fn on_destroy(&mut self, _: &mut EventCtx, ui: &mut UI) {
@@ -583,7 +586,8 @@ impl ContextMenu {
             .event(ui.primary.current_selection.clone(), &mut self.menu, ctx);
     }
 
-    fn draw(&self, g: &mut GfxCtx) {
+    fn draw(&self, g: &mut GfxCtx, ui: &UI) {
+        self.state.draw(g, ui);
         self.menu.draw(g);
     }
 
@@ -593,10 +597,6 @@ impl ContextMenu {
 
     fn action<S: Into<String>>(&mut self, key: Key, raw_name: S, ctx: &mut EventCtx) -> bool {
         self.state.action(key, raw_name, &mut self.menu, ctx)
-    }
-
-    fn add_to_draw_opts(&self, opts: &mut DrawOptions, ui: &UI) {
-        self.state.add_to_draw_opts(opts, ui);
     }
 }
 
@@ -744,11 +744,16 @@ impl ContextBar {
         }
     }
 
-    fn add_to_draw_opts(&self, opts: &mut DrawOptions, ui: &UI) {
+    fn draw(&self, g: &mut GfxCtx, ui: &UI) {
         if let ContextBar::Focused { ref id, .. } = self {
-            // TODO Actually, some permanent colored outline instead
-            opts.override_colors
-                .insert(id.clone(), ui.cs.get_def("focused", Color::RED.alpha(0.7)));
+            g.draw_polygon(
+                // TODO Or a diff color?
+                ui.cs.get("selected"),
+                &ui.primary
+                    .draw_map
+                    .get_renderable(id.clone())
+                    .get_outline(&ui.primary.map),
+            );
         }
     }
 }

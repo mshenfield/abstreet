@@ -283,7 +283,6 @@ impl DrawMap {
         }
     }
 
-    // The alt to these is implementing std::ops::Index, but that's way more verbose!
     pub fn get_r(&self, id: RoadID) -> &DrawRoad {
         &self.roads[id.0]
     }
@@ -333,6 +332,24 @@ impl DrawMap {
             results.push(id.clone());
         }
         results
+    }
+
+    pub fn get_renderable(&self, id: ID) -> Box<&dyn Renderable> {
+        match id {
+            ID::Road(r) => Box::new(self.get_r(r)),
+            ID::Lane(l) => Box::new(self.get_l(l)),
+            ID::Intersection(i) => Box::new(self.get_i(i)),
+            //ID::Turn(t) => Box::new(self.get_t(t)),
+            ID::Building(b) => Box::new(self.get_b(b)),
+            // TODO Handle these
+            ID::Turn(_) | ID::Car(_) | ID::Pedestrian(_) | ID::PedCrowd(_) => {
+                panic!("get_renderable for {:?} unimplemented", id)
+            }
+            ID::ExtraShape(es) => Box::new(self.get_es(es)),
+            ID::BusStop(bs) => Box::new(self.get_bs(bs)),
+            ID::Area(a) => Box::new(self.get_a(a)),
+            ID::Trip(_) => panic!("Can't get_renderable for {:?}", id),
+        }
     }
 }
 
