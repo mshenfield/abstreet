@@ -22,6 +22,7 @@ pub struct Canvas {
     window_has_cursor: bool,
 
     left_mouse_drag_from: Option<ScreenPt>,
+    still_dragging: bool,
 
     pub window_width: f64,
     pub window_height: f64,
@@ -63,6 +64,7 @@ impl Canvas {
             window_has_cursor: true,
 
             left_mouse_drag_from: None,
+            still_dragging: false,
             window_width: initial_width,
             window_height: initial_height,
 
@@ -83,8 +85,9 @@ impl Canvas {
         c
     }
 
-    pub(crate) fn is_dragging(&self) -> bool {
-        self.left_mouse_drag_from.is_some()
+    // TODO Maybe do drag detection at a lower level, rewriting some of the events that go through.
+    pub fn is_dragging(&self) -> bool {
+        self.still_dragging
     }
 
     pub fn handle_event(&mut self, input: &mut UserInput) {
@@ -96,15 +99,19 @@ impl Canvas {
                 self.cam_x += click.x - pt.x;
                 self.cam_y += click.y - pt.y;
                 self.left_mouse_drag_from = Some(pt);
+                self.still_dragging = true;
             }
         }
         // Can't start dragging or zooming on top of covered area
         let mouse_on_map = self.get_cursor_in_map_space().is_some();
         if input.left_mouse_button_pressed() && mouse_on_map {
             self.left_mouse_drag_from = Some(self.get_cursor_in_screen_space());
+            assert!(!self.still_dragging);
+            // still_dragging remains false until we actually move and confirm this is a drag.
         }
         if input.left_mouse_button_released() {
             self.left_mouse_drag_from = None;
+            self.still_dragging = false;
         }
         if mouse_on_map {
             if let Some(scroll) = input.get_mouse_scroll() {

@@ -17,8 +17,6 @@ pub struct UserInput {
     // TODO Logically these are borrowed, but I think that requires lots of lifetime plumbing right
     // now...
     pub(crate) context_menu: ContextMenu,
-
-    lctrl_held: bool,
 }
 
 pub enum ContextMenu {
@@ -65,7 +63,6 @@ impl UserInput {
             important_actions: Vec::new(),
             context_menu,
             reserved_keys: HashMap::new(),
-            lctrl_held: canvas.lctrl_held,
         };
 
         // First things first...
@@ -208,16 +205,13 @@ impl UserInput {
     }
 
     // No consuming for these?
-    pub fn ctrl_left_click(&mut self) -> bool {
-        self.lctrl_held && self.left_mouse_button_pressed()
-    }
     pub fn left_mouse_button_pressed(&mut self) -> bool {
         if self.context_menu_active() {
             return false;
         }
         self.event == Event::LeftMouseButtonDown
     }
-    pub(crate) fn left_mouse_button_released(&mut self) -> bool {
+    pub fn left_mouse_button_released(&mut self) -> bool {
         if self.context_menu_active() {
             return false;
         }

@@ -77,6 +77,8 @@ impl State for EditMode {
         }
         self.menu.handle_event(ctx, Some(txt));
 
+        self.ctx_menu.event(ctx, ui);
+
         ctx.canvas.handle_event(ctx.input);
 
         // TODO Reset when transitioning in/out of this state? Or maybe we just don't draw
@@ -86,7 +88,6 @@ impl State for EditMode {
         if ctx.redo_mouseover() {
             ui.recalculate_current_selection(ctx);
         }
-        self.ctx_menu.event(ctx, ui);
 
         if let Some(t) = self.common.event(ctx, ui, &mut self.menu) {
             return t;
@@ -642,7 +643,7 @@ impl ContextBar {
                 ref mut actions,
             } => {
                 if Some(id.clone()) == current_selection {
-                    if ctx.input.ctrl_left_click() {
+                    if ctx.input.left_mouse_button_released() && !ctx.canvas.is_dragging() {
                         *self = ContextBar::Focused {
                             id: id.clone(),
                             actions: actions.drain(..).collect(),
@@ -669,7 +670,7 @@ impl ContextBar {
                 if Some(id.clone()) == hovering.clone() {
                     *hovering = None;
                 }
-                if ctx.input.ctrl_left_click() {
+                if ctx.input.left_mouse_button_released() && !ctx.canvas.is_dragging() {
                     for action in actions.drain(..) {
                         menu.remove_action(&action, ctx);
                     }
@@ -732,13 +733,13 @@ impl ContextBar {
             } => {
                 txt.add(Line(format!("Focused on {:?}", id)));
                 if let Some(ref other) = hovering {
-                    txt.add(Line(format!("Ctrl+Click to focus on {:?} instead", other)));
+                    txt.add(Line(format!("Click to focus on {:?} instead", other)));
                 } else {
-                    txt.add(Line("Ctrl+Click to unfocus"));
+                    txt.add(Line("Click to unfocus"));
                 }
             }
             ContextBar::Hovering { ref id, .. } => {
-                txt.add(Line(format!("Ctrl+Click to focus on {:?}", id)));
+                txt.add(Line(format!("Click to focus on {:?}", id)));
             }
         }
     }
