@@ -1,8 +1,8 @@
-use crate::common::{CommonState, ContextMenu};
+use crate::common::CommonState;
 use crate::game::{State, Transition};
 use crate::helpers::ID;
 use crate::ui::UI;
-use ezgui::{EventCtx, GfxCtx, Key, Line, Text, WarpingItemSlider};
+use ezgui::{ContextMenu, EventCtx, GfxCtx, Key, Line, Text, WarpingItemSlider};
 use geom::Pt2D;
 use sim::{TripEnd, TripStart};
 
@@ -13,7 +13,11 @@ pub struct TripExplorer {
 }
 
 impl TripExplorer {
-    pub fn new(ctx: &mut EventCtx, ui: &UI, ctx_menu: &mut ContextMenu) -> Option<TripExplorer> {
+    pub fn new(
+        ctx: &mut EventCtx,
+        ui: &UI,
+        ctx_menu: &mut ContextMenu<ID>,
+    ) -> Option<TripExplorer> {
         let map = &ui.primary.map;
         let agent = ctx_menu.current_focus().and_then(|id| id.agent_id())?;
         let trip = ui.primary.sim.agent_to_trip(agent)?;

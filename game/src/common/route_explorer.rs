@@ -1,8 +1,9 @@
-use crate::common::{CommonState, ContextMenu};
+use crate::common::CommonState;
 use crate::game::{State, Transition};
+use crate::helpers::ID;
 use crate::render::DrawTurn;
 use crate::ui::UI;
-use ezgui::{Color, EventCtx, GfxCtx, Key, Line, Text, WarpingItemSlider};
+use ezgui::{Color, ContextMenu, EventCtx, GfxCtx, Key, Line, Text, WarpingItemSlider};
 use geom::{Distance, Polygon, Pt2D};
 use map_model::{Traversable, LANE_THICKNESS};
 
@@ -12,7 +13,11 @@ pub struct RouteExplorer {
 }
 
 impl RouteExplorer {
-    pub fn new(ctx: &mut EventCtx, ui: &UI, ctx_menu: &mut ContextMenu) -> Option<RouteExplorer> {
+    pub fn new(
+        ctx: &mut EventCtx,
+        ui: &UI,
+        ctx_menu: &mut ContextMenu<ID>,
+    ) -> Option<RouteExplorer> {
         let agent = ctx_menu.current_focus().and_then(|id| id.agent_id())?;
         let path = ui.primary.sim.get_path(agent)?.clone();
 

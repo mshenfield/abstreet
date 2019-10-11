@@ -1,7 +1,6 @@
-use crate::common::ContextMenu;
 use crate::helpers::ID;
 use crate::ui::UI;
-use ezgui::{hotkey, Color, EventCtx, GfxCtx, Key, ModalMenu};
+use ezgui::{hotkey, Color, ContextMenu, EventCtx, GfxCtx, Key, ModalMenu};
 use geom::{Duration, PolyLine};
 use map_model::LANE_THICKNESS;
 use sim::{AgentID, TripID, TripResult};
@@ -13,7 +12,7 @@ pub enum RouteViewer {
 }
 
 impl RouteViewer {
-    fn recalc(ui: &UI, ctx_menu: &ContextMenu) -> RouteViewer {
+    fn recalc(ui: &UI, ctx_menu: &ContextMenu<ID>) -> RouteViewer {
         if let Some(agent) = ctx_menu.current_focus().and_then(|id| id.agent_id()) {
             if let Some(trace) = ui.primary.sim.trace_route(agent, &ui.primary.map, None) {
                 return RouteViewer::Hovering(ui.primary.sim.time(), agent, trace);
@@ -27,7 +26,7 @@ impl RouteViewer {
         ctx: &mut EventCtx,
         ui: &UI,
         parent_menu: &mut ModalMenu,
-        ctx_menu: &mut ContextMenu,
+        ctx_menu: &mut ContextMenu<ID>,
     ) {
         match self {
             RouteViewer::Inactive => {

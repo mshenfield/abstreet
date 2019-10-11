@@ -1,8 +1,8 @@
-use crate::common::{ContextMenu, RoadColorer, RoadColorerBuilder};
+use crate::common::{RoadColorer, RoadColorerBuilder};
 use crate::game::{State, Transition};
 use crate::helpers::ID;
 use crate::ui::UI;
-use ezgui::{hotkey, Color, EventCtx, GfxCtx, Key, Line, ModalMenu, Text};
+use ezgui::{hotkey, Color, ContextMenu, EventCtx, GfxCtx, Key, Line, ModalMenu, Text};
 use map_model::{LaneID, Map};
 use petgraph::graphmap::DiGraphMap;
 use std::collections::HashSet;
@@ -17,7 +17,7 @@ impl Floodfiller {
         ctx: &mut EventCtx,
         ui: &UI,
         parent_menu: &mut ModalMenu,
-        ctx_menu: &mut ContextMenu,
+        ctx_menu: &mut ContextMenu<ID>,
     ) -> Option<Box<dyn State>> {
         let map = &ui.primary.map;
         let (reachable_lanes, mut prompt) = if let Some(ID::Lane(l)) = ctx_menu.current_focus() {

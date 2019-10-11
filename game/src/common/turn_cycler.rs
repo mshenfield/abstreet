@@ -1,9 +1,8 @@
-use crate::common::ContextMenu;
 use crate::game::{State, Transition};
 use crate::helpers::ID;
 use crate::render::{DrawCtx, DrawOptions, DrawTurn, TrafficSignalDiagram};
 use crate::ui::{ShowEverything, UI};
-use ezgui::{hotkey, Color, EventCtx, GeomBatch, GfxCtx, Key, ModalMenu};
+use ezgui::{hotkey, Color, ContextMenu, EventCtx, GeomBatch, GfxCtx, Key, ModalMenu};
 use map_model::{IntersectionID, LaneID, Map, TurnType};
 
 pub enum TurnCyclerState {
@@ -17,7 +16,7 @@ impl TurnCyclerState {
         &mut self,
         ctx: &mut EventCtx,
         ui: &mut UI,
-        ctx_menu: &mut ContextMenu,
+        ctx_menu: &mut ContextMenu<ID>,
     ) -> Option<Transition> {
         match ctx_menu.current_focus() {
             Some(ID::Lane(id)) if !ui.primary.map.get_turns_from_lane(id).is_empty() => {

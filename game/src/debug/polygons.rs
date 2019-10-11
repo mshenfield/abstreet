@@ -1,10 +1,9 @@
-use crate::common::ContextMenu;
 use crate::game::{State, Transition};
 use crate::helpers::ID;
 use crate::render::calculate_corners;
 use crate::ui::UI;
 use abstutil::Timer;
-use ezgui::{EventCtx, GfxCtx, Key, Line, Text, WarpingItemSlider};
+use ezgui::{ContextMenu, EventCtx, GfxCtx, Key, Line, Text, WarpingItemSlider};
 use geom::{Polygon, Pt2D, Triangle};
 
 pub struct PolygonDebugger {
@@ -19,7 +18,11 @@ enum Item {
 }
 
 impl PolygonDebugger {
-    pub fn new(ctx: &mut EventCtx, ui: &UI, ctx_menu: &mut ContextMenu) -> Option<PolygonDebugger> {
+    pub fn new(
+        ctx: &mut EventCtx,
+        ui: &UI,
+        ctx_menu: &mut ContextMenu<ID>,
+    ) -> Option<PolygonDebugger> {
         match ctx_menu.current_focus() {
             Some(ID::Intersection(id)) => {
                 let i = ui.primary.map.get_i(id);

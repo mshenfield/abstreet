@@ -4,15 +4,15 @@ mod spawner;
 mod time_travel;
 mod trip_stats;
 
-use crate::common::{time_controls, AgentTools, CommonState, ContextMenu, SpeedControls};
+use crate::common::{time_controls, AgentTools, CommonState, SpeedControls};
 use crate::debug::DebugMode;
 use crate::edit::EditMode;
 use crate::game::{State, Transition, WizardState};
 use crate::helpers::ID;
 use crate::ui::{ShowEverything, UI};
 use ezgui::{
-    hotkey, lctrl, Choice, EventCtx, EventLoopMode, GfxCtx, Key, Line, ModalMenu, ScreenPt,
-    SidebarPos, Text, Wizard,
+    hotkey, lctrl, Choice, ContextMenu, EventCtx, EventLoopMode, GfxCtx, Key, Line, ModalMenu,
+    ScreenPt, SidebarPos, Text, Wizard,
 };
 use geom::Duration;
 use sim::Sim;
@@ -26,7 +26,7 @@ pub struct SandboxMode {
     analytics: analytics::Analytics,
     common: CommonState,
     menu: ModalMenu,
-    ctx_menu: ContextMenu,
+    ctx_menu: ContextMenu<ID>,
 }
 
 impl SandboxMode {
@@ -93,7 +93,8 @@ impl State for SandboxMode {
             txt.add(Line(ui.primary.sim.summary()));
             self.menu.handle_event(ctx, Some(txt));
         }
-        self.ctx_menu.event(ctx, ui);
+        self.ctx_menu
+            .event(ctx, ui.primary.current_selection.clone());
 
         ctx.canvas.handle_event(ctx.input);
         if ctx.redo_mouseover() {
@@ -256,7 +257,16 @@ impl State for SandboxMode {
         self.common.draw(g, ui);
         self.menu.draw(g);
         self.speed.draw(g);
-        self.ctx_menu.draw(g, ui);
+        // TODO Refactor!
+        if let Some(id) = self.ctx_menu.draw(g) {
+            g.draw_polygon(
+                ui.cs.get("selected"),
+                &ui.primary
+                    .draw_map
+                    .get_renderable(id, &ui.primary.draw_map.agents.borrow())
+                    .get_outline(&ui.primary.map),
+            );
+        }
     }
 
     fn on_suspend(&mut self, ctx: &mut EventCtx, _: &mut UI) {

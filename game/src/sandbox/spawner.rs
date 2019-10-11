@@ -1,10 +1,10 @@
-use crate::common::{CommonState, ContextMenu};
+use crate::common::CommonState;
 use crate::game::{State, Transition, WizardState};
 use crate::helpers::ID;
 use crate::render::DrawOptions;
 use crate::ui::{ShowEverything, UI};
 use abstutil::Timer;
-use ezgui::{hotkey, EventCtx, GfxCtx, Key, ModalMenu, Wizard};
+use ezgui::{hotkey, ContextMenu, EventCtx, GfxCtx, Key, ModalMenu, Wizard};
 use geom::{Duration, PolyLine};
 use map_model::{BuildingID, IntersectionID, LaneType, PathRequest, Position, LANE_THICKNESS};
 use rand::seq::SliceRandom;
@@ -40,7 +40,7 @@ impl AgentSpawner {
         ctx: &mut EventCtx,
         ui: &mut UI,
         sandbox_menu: &mut ModalMenu,
-        ctx_menu: &mut ContextMenu,
+        ctx_menu: &mut ContextMenu<ID>,
     ) -> Option<Box<dyn State>> {
         let menu = ModalMenu::new(
             "Agent Spawner",

@@ -1,8 +1,8 @@
-use crate::common::{CommonState, ContextMenu};
+use crate::common::CommonState;
 use crate::game::{State, Transition, WizardState};
 use crate::helpers::ID;
 use crate::ui::UI;
-use ezgui::{Choice, EventCtx, GfxCtx, Key, ModalMenu, Text, WarpingItemSlider};
+use ezgui::{Choice, ContextMenu, EventCtx, GfxCtx, Key, ModalMenu, Text, WarpingItemSlider};
 use geom::Pt2D;
 use map_model::{BusRoute, BusRouteID, BusStopID, Map};
 
@@ -11,7 +11,11 @@ pub struct BusRouteExplorer {
 }
 
 impl BusRouteExplorer {
-    pub fn new(ctx: &mut EventCtx, ui: &UI, ctx_menu: &mut ContextMenu) -> Option<Box<dyn State>> {
+    pub fn new(
+        ctx: &mut EventCtx,
+        ui: &UI,
+        ctx_menu: &mut ContextMenu<ID>,
+    ) -> Option<Box<dyn State>> {
         let map = &ui.primary.map;
         let routes = match ctx_menu.current_focus() {
             Some(ID::BusStop(bs)) => map.get_routes_serving_stop(bs),

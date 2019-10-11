@@ -2,8 +2,8 @@ mod model;
 
 use abstutil::CmdArgs;
 use ezgui::{
-    Choice, Color, Drawable, EventCtx, EventLoopMode, GeomBatch, GfxCtx, Key, Line, Text, Wizard,
-    GUI,
+    Choice, Color, ContextMenu, Drawable, EventCtx, EventLoopMode, GeomBatch, GfxCtx, Key, Line,
+    SidebarPos, Text, Wizard, GUI,
 };
 use geom::{Distance, Line, Polygon, Pt2D};
 use map_model::raw::{RestrictionType, StableBuildingID, StableIntersectionID, StableRoadID};
@@ -15,6 +15,7 @@ struct UI {
     model: Model,
     state: State,
     osd: Text,
+    ctx_menu: ContextMenu<ID>,
 }
 
 enum State {
@@ -55,6 +56,7 @@ impl UI {
             model,
             state: State::Viewing,
             osd: Text::new(),
+            ctx_menu: ContextMenu::new("Objects", ctx, SidebarPos::Left),
         }
     }
 }
@@ -64,6 +66,37 @@ impl GUI for UI {
         ctx.canvas.handle_event(ctx.input);
         if ctx.redo_mouseover() {
             self.model.world.handle_mouseover(ctx);
+        }
+        if self.ctx_menu.event(ctx, self.model.world.get_selection()) {
+            if let Some(ID::Lane(id, _, _)) = self.model.world.get_selection() {
+                let mut txt = Text::new();
+                for (k, v) in &self.model.map.roads[&id].osm_tags {
+                    txt.add_appended(vec![
+                        Line(k).fg(Color::RED),
+                        Line(" = "),
+                        Line(v).fg(Color::CYAN),
+                    ]);
+                }
+                for (restriction, dst) in &self.model.map.roads[&id].turn_restrictions {
+                    txt.add_appended(vec![
+                        Line("Restriction: "),
+                        Line(format!("{:?}", restriction)).fg(Color::RED),
+                        Line(" to "),
+                        Line(format!("way {}", dst)).fg(Color::CYAN),
+                    ]);
+                }
+                self.ctx_menu.set_obj_info(txt);
+            } else if let Some(ID::Intersection(i)) = self.model.world.get_selection() {
+                let mut txt = Text::new();
+                txt.add(Line(format!(
+                    "{} is {:?}",
+                    i, self.model.map.intersections[&i].orig_id
+                )));
+                for r in self.model.map.roads_per_intersection(i) {
+                    txt.add(Line(format!("- {}", r)));
+                }
+                self.ctx_menu.set_obj_info(txt);
+            }
         }
 
         match self.state {
@@ -473,6 +506,7 @@ impl GUI for UI {
         g.clear(Color::BLACK);
         g.draw_polygon(Color::rgb(242, 239, 233), &self.model.map.boundary_polygon);
         self.model.world.draw(g);
+        self.ctx_menu.draw(g);
 
         match self.state {
             State::CreatingRoad(i1) => {
@@ -493,50 +527,8 @@ impl GUI for UI {
             | State::EnteringWarp(ref wizard) => {
                 wizard.draw(g);
             }
-            State::Viewing => {
-                if let Some(ID::Lane(id, _, _)) = self.model.world.get_selection() {
-                    let mut txt = Text::new();
-                    for (k, v) in &self.model.map.roads[&id].osm_tags {
-                        txt.add_appended(vec![
-                            Line(k).fg(Color::RED),
-                            Line(" = "),
-                            Line(v).fg(Color::CYAN),
-                        ]);
-                    }
-                    for (restriction, dst) in &self.model.map.roads[&id].turn_restrictions {
-                        txt.add_appended(vec![
-                            Line("Restriction: "),
-                            Line(format!("{:?}", restriction)).fg(Color::RED),
-                            Line(" to "),
-                            Line(format!("way {}", dst)).fg(Color::CYAN),
-                        ]);
-                    }
-                    g.draw_blocking_text(
-                        &txt,
-                        (
-                            ezgui::HorizontalAlignment::Right,
-                            ezgui::VerticalAlignment::Top,
-                        ),
-                    );
-                } else if let Some(ID::Intersection(i)) = self.model.world.get_selection() {
-                    let mut txt = Text::new();
-                    txt.add(Line(format!(
-                        "{} is {:?}",
-                        i, self.model.map.intersections[&i].orig_id
-                    )));
-                    for r in self.model.map.roads_per_intersection(i) {
-                        txt.add(Line(format!("- {}", r)));
-                    }
-                    g.draw_blocking_text(
-                        &txt,
-                        (
-                            ezgui::HorizontalAlignment::Right,
-                            ezgui::VerticalAlignment::Top,
-                        ),
-                    );
-                }
-            }
-            State::MovingIntersection(_)
+            State::Viewing
+            | State::MovingIntersection(_)
             | State::MovingBuilding(_)
             | State::MovingRoadPoint(_, _)
             | State::StampingRoads(_, _, _) => {}
@@ -575,7 +567,7 @@ impl GUI for UI {
             }
         };
 
-        g.draw_blocking_text(&self.osd, ezgui::BOTTOM_LEFT);
+        g.draw_blocking_text(&self.osd, ezgui::BOTTOM_RIGHT);
     }
 }
 

@@ -1,41 +1,60 @@
-use crate::helpers::ID;
-use crate::ui::UI;
-use ezgui::{hotkey, EventCtx, GfxCtx, Key, Line, ModalMenu, SidebarPos, Text};
+use crate::{hotkey, EventCtx, GfxCtx, Key, Line, ModalMenu, SidebarPos, Text};
+use std::fmt::Debug;
 
-// TODO Move/generalize.
-// This wraps the menu entirely. Not sure if everyone will want this or not.
-pub struct ContextMenu {
+pub struct ContextMenu<T: Clone + PartialEq + Debug> {
     menu: ModalMenu,
     title: String,
-    state: State,
+    obj_info: Option<Text>,
+    state: State<T>,
 }
 
-impl ContextMenu {
-    pub fn new(title: &str, ctx: &EventCtx, pos: SidebarPos) -> ContextMenu {
+impl<T: Clone + PartialEq + Debug> ContextMenu<T> {
+    pub fn new(title: &str, ctx: &EventCtx, pos: SidebarPos) -> ContextMenu<T> {
         ContextMenu {
             menu: ModalMenu::new(title, Vec::new(), ctx).set_pos(ctx, pos),
             title: title.to_string(),
-            state: State::new(),
+            obj_info: None,
+            state: State::Unfocused,
         }
     }
 
-    // TODO When should this be called, before or after recalculate_current_selection?
-    pub fn event(&mut self, ctx: &mut EventCtx, ui: &UI) {
+    // TODO When should this be called, before or after recalculating the current_selection?
+    // Returns true if the current_focus changes.
+    pub fn event(&mut self, ctx: &mut EventCtx, current_selection: Option<T>) -> bool {
         let mut txt = Text::prompt(&self.title);
         self.state.add_to_prompt(&mut txt);
+        if let Some(ref t) = self.obj_info {
+            txt.extend(t);
+        }
         self.menu.handle_event(ctx, Some(txt));
-
-        self.state
-            .event(ui.primary.current_selection.clone(), &mut self.menu, ctx);
+        let old = self.current_focus();
+        self.state.event(current_selection, &mut self.menu, ctx);
+        let change = self.current_focus() != old;
+        if change {
+            self.obj_info = None;
+        }
+        change
     }
 
-    pub fn draw(&self, g: &mut GfxCtx, ui: &UI) {
-        self.state.draw(g, ui);
+    pub fn set_obj_info(&mut self, info: Text) {
+        assert!(self.current_focus().is_some());
+        self.obj_info = Some(info);
+    }
+
+    // Returns the current focus, if any. Hovering doesn't count.
+    pub fn draw(&self, g: &mut GfxCtx) -> Option<T> {
         self.menu.draw(g);
+        match self.state {
+            State::Focused { ref id, .. } => Some(id.clone()),
+            _ => None,
+        }
     }
 
-    pub fn current_focus(&self) -> Option<ID> {
-        self.state.current_focus()
+    pub fn current_focus(&self) -> Option<T> {
+        match self.state {
+            State::Unfocused => None,
+            State::Hovering { ref id, .. } | State::Focused { ref id, .. } => Some(id.clone()),
+        }
     }
 
     pub fn action<S: Into<String>>(&mut self, key: Key, raw_name: S, ctx: &mut EventCtx) -> bool {
@@ -43,32 +62,21 @@ impl ContextMenu {
     }
 }
 
-enum State {
+enum State<T: Clone + PartialEq + Debug> {
     Unfocused,
     Hovering {
-        id: ID,
+        id: T,
         actions: Vec<String>,
     },
     Focused {
-        id: ID,
+        id: T,
         actions: Vec<String>,
-        hovering: Option<ID>,
+        hovering: Option<T>,
     },
 }
 
-impl State {
-    fn new() -> State {
-        State::Unfocused
-    }
-
-    fn current_focus(&self) -> Option<ID> {
-        match self {
-            State::Unfocused => None,
-            State::Hovering { ref id, .. } | State::Focused { ref id, .. } => Some(id.clone()),
-        }
-    }
-
-    fn event(&mut self, current_selection: Option<ID>, menu: &mut ModalMenu, ctx: &mut EventCtx) {
+impl<T: Clone + PartialEq + Debug> State<T> {
+    fn event(&mut self, current_selection: Option<T>, menu: &mut ModalMenu, ctx: &mut EventCtx) {
         match self {
             State::Unfocused => {
                 if let Some(ref id) = current_selection {
@@ -181,19 +189,6 @@ impl State {
             State::Hovering { ref id, .. } => {
                 txt.add(Line(format!("Click to focus on {:?}", id)));
             }
-        }
-    }
-
-    fn draw(&self, g: &mut GfxCtx, ui: &UI) {
-        if let State::Focused { ref id, .. } = self {
-            g.draw_polygon(
-                // TODO Or a diff color?
-                ui.cs.get("selected"),
-                &ui.primary
-                    .draw_map
-                    .get_renderable(id.clone(), &ui.primary.draw_map.agents.borrow())
-                    .get_outline(&ui.primary.map),
-            );
         }
     }
 }

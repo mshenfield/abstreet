@@ -1,11 +1,12 @@
 use crate::common::route_explorer::RouteExplorer;
 use crate::common::route_viewer::RouteViewer;
 use crate::common::trip_explorer::TripExplorer;
-use crate::common::{ColorLegend, ContextMenu};
+use crate::common::ColorLegend;
 use crate::game::{Transition, WizardState};
+use crate::helpers::ID;
 use crate::render::{AgentColorScheme, MIN_ZOOM_FOR_DETAIL};
 use crate::ui::UI;
-use ezgui::{hotkey, Choice, EventCtx, GfxCtx, Key, ModalMenu};
+use ezgui::{hotkey, Choice, ContextMenu, EventCtx, GfxCtx, Key, ModalMenu};
 use geom::{Duration, Pt2D};
 use sim::{TripID, TripResult};
 use std::cell::RefCell;
@@ -31,7 +32,7 @@ impl AgentTools {
         ctx: &mut EventCtx,
         ui: &UI,
         parent_menu: &mut ModalMenu,
-        ctx_menu: &mut ContextMenu,
+        ctx_menu: &mut ContextMenu<ID>,
     ) -> Option<Transition> {
         if self.following.is_none() {
             if let Some(agent) = ctx_menu.current_focus().and_then(|id| id.agent_id()) {

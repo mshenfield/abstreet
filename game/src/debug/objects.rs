@@ -1,9 +1,8 @@
-use crate::common::ContextMenu;
 use crate::helpers::ID;
 use crate::render::DrawMap;
 use crate::ui::PerMapUI;
 use crate::ui::UI;
-use ezgui::{Color, EventCtx, GfxCtx, Key, Line, Text};
+use ezgui::{Color, ContextMenu, EventCtx, GfxCtx, Key, Line, Text};
 use map_model::raw::StableRoadID;
 use map_model::Map;
 use sim::{CarID, Sim};
@@ -22,7 +21,7 @@ impl ObjectDebugger {
         }
     }
 
-    pub fn event(&mut self, ctx: &mut EventCtx, ui: &UI, ctx_menu: &mut ContextMenu) {
+    pub fn event(&mut self, ctx: &mut EventCtx, ui: &UI, ctx_menu: &mut ContextMenu<ID>) {
         if self.tooltip_key_held {
             self.tooltip_key_held = !ctx.input.key_released(Key::LeftControl);
         } else {

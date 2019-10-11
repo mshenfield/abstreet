@@ -1,7 +1,6 @@
 mod agent;
 mod associated;
 mod colors;
-mod context_menu;
 mod navigate;
 mod route_explorer;
 mod route_viewer;
@@ -16,7 +15,6 @@ pub use self::agent::AgentTools;
 pub use self::colors::{
     ColorLegend, ObjectColorer, ObjectColorerBuilder, RoadColorer, RoadColorerBuilder,
 };
-pub use self::context_menu::ContextMenu;
 pub use self::speed::SpeedControls;
 pub use self::time::time_controls;
 pub use self::warp::Warping;
@@ -25,8 +23,8 @@ use crate::helpers::ID;
 use crate::render::DrawOptions;
 use crate::ui::UI;
 use ezgui::{
-    Color, EventCtx, EventLoopMode, GfxCtx, HorizontalAlignment, Line, ModalMenu, Text,
-    VerticalAlignment,
+    Color, ContextMenu, EventCtx, EventLoopMode, GfxCtx, HorizontalAlignment, Line, ModalMenu,
+    Text, VerticalAlignment,
 };
 use std::collections::BTreeSet;
 
@@ -48,7 +46,7 @@ impl CommonState {
         ctx: &mut EventCtx,
         ui: &mut UI,
         parent_menu: &mut ModalMenu,
-        ctx_menu: &mut ContextMenu,
+        ctx_menu: &mut ContextMenu<ID>,
     ) -> Option<Transition> {
         if parent_menu.action("warp") {
             return Some(Transition::Push(warp::EnteringWarp::new()));

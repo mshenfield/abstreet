@@ -1,14 +1,15 @@
 mod score;
 pub mod setup;
 
-use crate::common::{time_controls, AgentTools, CommonState, ContextMenu, SpeedControls};
+use crate::common::{time_controls, AgentTools, CommonState, SpeedControls};
 use crate::debug::DebugMode;
 use crate::game::{State, Transition};
+use crate::helpers::ID;
 use crate::render::MIN_ZOOM_FOR_DETAIL;
 use crate::ui::{PerMapUI, UI};
 use ezgui::{
-    hotkey, lctrl, Color, EventCtx, EventLoopMode, GeomBatch, GfxCtx, Key, Line, ModalMenu,
-    ScreenPt, SidebarPos, Text,
+    hotkey, lctrl, Color, ContextMenu, EventCtx, EventLoopMode, GeomBatch, GfxCtx, Key, Line,
+    ModalMenu, ScreenPt, SidebarPos, Text,
 };
 use geom::{Circle, Distance, Line, PolyLine};
 use map_model::{Map, LANE_THICKNESS};
@@ -17,7 +18,7 @@ use sim::{Sim, SimOptions, TripID};
 
 pub struct ABTestMode {
     menu: ModalMenu,
-    ctx_menu: ContextMenu,
+    ctx_menu: ContextMenu<ID>,
     speed: SpeedControls,
     primary_agent_tools: AgentTools,
     secondary_agent_tools: AgentTools,
@@ -99,7 +100,8 @@ impl State for ABTestMode {
         }
         txt.add(Line(ui.primary.sim.summary()));
         self.menu.handle_event(ctx, Some(txt));
-        self.ctx_menu.event(ctx, ui);
+        self.ctx_menu
+            .event(ctx, ui.primary.current_selection.clone());
 
         ctx.canvas.handle_event(ctx.input);
         if ctx.redo_mouseover() {
@@ -225,7 +227,16 @@ impl State for ABTestMode {
         }
         self.menu.draw(g);
         self.speed.draw(g);
-        self.ctx_menu.draw(g, ui);
+        // TODO Refactor!
+        if let Some(id) = self.ctx_menu.draw(g) {
+            g.draw_polygon(
+                ui.cs.get("selected"),
+                &ui.primary
+                    .draw_map
+                    .get_renderable(id, &ui.primary.draw_map.agents.borrow())
+                    .get_outline(&ui.primary.map),
+            );
+        }
         self.primary_agent_tools.draw(g, ui);
     }
 

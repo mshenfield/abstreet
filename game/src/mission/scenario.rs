@@ -1,4 +1,4 @@
-use crate::common::{CommonState, ContextMenu, ObjectColorer, ObjectColorerBuilder, Warping};
+use crate::common::{CommonState, ObjectColorer, ObjectColorerBuilder, Warping};
 use crate::game::{State, Transition, WizardState};
 use crate::helpers::ID;
 use crate::mission::pick_time_range;
@@ -6,8 +6,8 @@ use crate::sandbox::SandboxMode;
 use crate::ui::UI;
 use abstutil::{prettyprint_usize, MultiMap, WeightedUsizeChoice};
 use ezgui::{
-    hotkey, Choice, Color, EventCtx, EventLoopMode, GfxCtx, Key, Line, ModalMenu, SidebarPos, Text,
-    Wizard, WrappedWizard,
+    hotkey, Choice, Color, ContextMenu, EventCtx, EventLoopMode, GfxCtx, Key, Line, ModalMenu,
+    SidebarPos, Text, Wizard, WrappedWizard,
 };
 use geom::Duration;
 use map_model::{BuildingID, IntersectionID, Map, Neighborhood};
@@ -20,7 +20,7 @@ use std::fmt;
 
 pub struct ScenarioManager {
     menu: ModalMenu,
-    ctx_menu: ContextMenu,
+    ctx_menu: ContextMenu<ID>,
     common: CommonState,
     scenario: Scenario,
 
@@ -187,7 +187,8 @@ impl State for ScenarioManager {
             )));
             self.menu.handle_event(ctx, Some(txt));
         }
-        self.ctx_menu.event(ctx, ui);
+        self.ctx_menu
+            .event(ctx, ui.primary.current_selection.clone());
         ctx.canvas.handle_event(ctx.input);
         if ctx.redo_mouseover() {
             ui.recalculate_current_selection(ctx);
@@ -273,7 +274,18 @@ impl State for ScenarioManager {
         self.bldg_colors.draw(g, ui);
 
         self.menu.draw(g);
-        self.ctx_menu.draw(g, ui);
+        // TODO Refactor!
+        if let Some(id) = self.ctx_menu.draw(g) {
+            g.draw_polygon(
+                // TODO Or a diff color?
+                ui.cs.get("selected"),
+                &ui.primary
+                    .draw_map
+                    .get_renderable(id, &ui.primary.draw_map.agents.borrow())
+                    .get_outline(&ui.primary.map),
+            );
+        }
+
         // TODO Weird to not draw common (turn cycler), but we want the custom OSD...
 
         if let Some(ID::Building(b)) = ui.primary.current_selection {

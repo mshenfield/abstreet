@@ -1,7 +1,7 @@
 mod stop_signs;
 mod traffic_signals;
 
-use crate::common::{CommonState, ContextMenu};
+use crate::common::CommonState;
 use crate::debug::DebugMode;
 use crate::game::{State, Transition, WizardState};
 use crate::helpers::{ColorScheme, ID};
@@ -13,7 +13,8 @@ use crate::sandbox::SandboxMode;
 use crate::ui::{PerMapUI, ShowEverything, UI};
 use abstutil::Timer;
 use ezgui::{
-    hotkey, lctrl, Choice, Color, EventCtx, GfxCtx, Key, Line, ModalMenu, SidebarPos, Text, Wizard,
+    hotkey, lctrl, Choice, Color, ContextMenu, EventCtx, GfxCtx, Key, Line, ModalMenu, SidebarPos,
+    Text, Wizard,
 };
 use map_model::{
     IntersectionID, Lane, LaneID, LaneType, Map, MapEdits, Road, RoadID, TurnID, TurnType,
@@ -23,7 +24,7 @@ use std::collections::{BTreeSet, HashMap};
 pub struct EditMode {
     common: CommonState,
     menu: ModalMenu,
-    ctx_menu: ContextMenu,
+    ctx_menu: ContextMenu<ID>,
 }
 
 impl EditMode {
@@ -77,7 +78,8 @@ impl State for EditMode {
         }
         self.menu.handle_event(ctx, Some(txt));
 
-        self.ctx_menu.event(ctx, ui);
+        self.ctx_menu
+            .event(ctx, ui.primary.current_selection.clone());
 
         ctx.canvas.handle_event(ctx.input);
 
@@ -300,7 +302,16 @@ impl State for EditMode {
 
         self.common.draw(g, ui);
         self.menu.draw(g);
-        self.ctx_menu.draw(g, ui);
+        // TODO Refactor!
+        if let Some(id) = self.ctx_menu.draw(g) {
+            g.draw_polygon(
+                ui.cs.get("selected"),
+                &ui.primary
+                    .draw_map
+                    .get_renderable(id, &ui.primary.draw_map.agents.borrow())
+                    .get_outline(&ui.primary.map),
+            );
+        }
     }
 
     fn on_destroy(&mut self, _: &mut EventCtx, ui: &mut UI) {

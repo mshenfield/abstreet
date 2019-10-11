@@ -7,22 +7,22 @@ mod objects;
 mod polygons;
 mod routes;
 
-use crate::common::{CommonState, ContextMenu};
+use crate::common::CommonState;
 use crate::game::{State, Transition, WizardState};
 use crate::helpers::ID;
 use crate::render::MIN_ZOOM_FOR_DETAIL;
 use crate::ui::{ShowLayers, ShowObject, UI};
 use abstutil::Timer;
 use ezgui::{
-    hotkey, Color, Drawable, EventCtx, EventLoopMode, GeomBatch, GfxCtx, Key, Line, ModalMenu,
-    SidebarPos, Text, Wizard,
+    hotkey, Color, ContextMenu, Drawable, EventCtx, EventLoopMode, GeomBatch, GfxCtx, Key, Line,
+    ModalMenu, SidebarPos, Text, Wizard,
 };
 use geom::Duration;
 use std::collections::HashSet;
 
 pub struct DebugMode {
     menu: ModalMenu,
-    ctx_menu: ContextMenu,
+    ctx_menu: ContextMenu<ID>,
     common: CommonState,
     connected_roads: connected_roads::ShowConnectedRoads,
     objects: objects::ObjectDebugger,
@@ -116,7 +116,8 @@ impl State for DebugMode {
             txt.add(Line(format!("Showing {} routes", traces.len())));
         }
         self.menu.handle_event(ctx, Some(txt));
-        self.ctx_menu.event(ctx, ui);
+        self.ctx_menu
+            .event(ctx, ui.primary.current_selection.clone());
 
         ctx.canvas.handle_event(ctx.input);
         if let Some(t) = self
@@ -275,7 +276,16 @@ impl State for DebugMode {
 
         if !g.is_screencap() {
             self.menu.draw(g);
-            self.ctx_menu.draw(g, ui);
+            // TODO Refactor!
+            if let Some(id) = self.ctx_menu.draw(g) {
+                g.draw_polygon(
+                    ui.cs.get("selected"),
+                    &ui.primary
+                        .draw_map
+                        .get_renderable(id, &ui.primary.draw_map.agents.borrow())
+                        .get_outline(&ui.primary.map),
+                );
+            }
         }
     }
 }
