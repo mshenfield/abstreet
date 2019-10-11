@@ -277,8 +277,7 @@ impl State for ScenarioManager {
         // TODO Refactor!
         if let Some(id) = self.ctx_menu.draw(g) {
             g.draw_polygon(
-                // TODO Or a diff color?
-                ui.cs.get("selected"),
+                ui.cs.get("confirmed selected"),
                 &ui.primary
                     .draw_map
                     .get_renderable(id, &ui.primary.draw_map.agents.borrow())

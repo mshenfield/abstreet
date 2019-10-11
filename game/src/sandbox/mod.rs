@@ -11,8 +11,8 @@ use crate::game::{State, Transition, WizardState};
 use crate::helpers::ID;
 use crate::ui::{ShowEverything, UI};
 use ezgui::{
-    hotkey, lctrl, Choice, ContextMenu, EventCtx, EventLoopMode, GfxCtx, Key, Line, ModalMenu,
-    ScreenPt, SidebarPos, Text, Wizard,
+    hotkey, lctrl, Choice, Color, ContextMenu, EventCtx, EventLoopMode, GfxCtx, Key, Line,
+    ModalMenu, ScreenPt, SidebarPos, Text, Wizard,
 };
 use geom::Duration;
 use sim::Sim;
@@ -260,7 +260,7 @@ impl State for SandboxMode {
         // TODO Refactor!
         if let Some(id) = self.ctx_menu.draw(g) {
             g.draw_polygon(
-                ui.cs.get("selected"),
+                ui.cs.get_def("confirmed selection", Color::RED.alpha(0.7)),
                 &ui.primary
                     .draw_map
                     .get_renderable(id, &ui.primary.draw_map.agents.borrow())

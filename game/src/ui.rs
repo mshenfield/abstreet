@@ -171,7 +171,7 @@ impl UI {
 
                 if self.primary.current_selection == Some(obj.get_id()) {
                     g.draw_polygon(
-                        self.cs.get_def("selected", Color::RED.alpha(0.7)),
+                        self.cs.get_def("selected", Color::YELLOW.alpha(0.7)),
                         &obj.get_outline(&ctx.map),
                     );
                 }
