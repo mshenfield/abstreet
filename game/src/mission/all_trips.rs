@@ -74,7 +74,7 @@ impl TripsVisualizer {
             ],
             ctx,
         )
-        .set_pos(ctx, SidebarPos::below(&time_slider));
+        .set_pos(ctx, SidebarPos::below(&time_slider), None);
         time_slider.snap_above(&menu);
 
         TripsVisualizer {

@@ -1,4 +1,4 @@
-use crate::{hotkey, EventCtx, GfxCtx, Key, Line, ModalMenu, SidebarPos, Text};
+use crate::{hotkey, EventCtx, GfxCtx, Key, Line, ModalMenu, ScreenDims, SidebarPos, Text};
 use std::fmt::Debug;
 
 pub struct ContextMenu<T: Clone + PartialEq + Debug> {
@@ -11,7 +11,12 @@ pub struct ContextMenu<T: Clone + PartialEq + Debug> {
 impl<T: Clone + PartialEq + Debug> ContextMenu<T> {
     pub fn new(title: &str, ctx: &EventCtx, pos: SidebarPos) -> ContextMenu<T> {
         ContextMenu {
-            menu: ModalMenu::new(title, Vec::new(), ctx).set_pos(ctx, pos),
+            // TODO Hardcoding overrides for dims
+            menu: ModalMenu::new(title, Vec::new(), ctx).set_pos(
+                ctx,
+                pos,
+                Some(ScreenDims::new(500.0, 800.0)),
+            ),
             title: title.to_string(),
             obj_info: None,
             state: State::Unfocused,

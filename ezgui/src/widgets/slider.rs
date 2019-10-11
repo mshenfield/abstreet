@@ -259,7 +259,7 @@ impl<T> ItemSlider<T> {
             0.0,
         ));
         let menu =
-            ModalMenu::new(menu_title, choices, ctx).set_pos(ctx, SidebarPos::below(&slider));
+            ModalMenu::new(menu_title, choices, ctx).set_pos(ctx, SidebarPos::below(&slider), None);
         slider.snap_above(&menu);
 
         ItemSlider {

@@ -1,5 +1,5 @@
 use crate::widgets::{Menu, Position};
-use crate::{Canvas, EventCtx, GfxCtx, InputResult, MultiKey, ScreenPt, Slider, Text};
+use crate::{Canvas, EventCtx, GfxCtx, InputResult, MultiKey, ScreenDims, ScreenPt, Slider, Text};
 
 #[derive(Clone, Copy)]
 pub enum SidebarPos {
@@ -13,6 +13,7 @@ pub struct ModalMenu {
     chosen_action: Option<String>,
     choice_groups: Vec<Vec<(Option<MultiKey>, String, ())>>,
     pos: SidebarPos,
+    override_dims: Option<ScreenDims>,
 }
 
 impl ModalMenu {
@@ -37,6 +38,7 @@ impl ModalMenu {
             false,
             true,
             pos.pos(),
+            None,
             ctx.canvas,
         );
         menu.mark_all_inactive();
@@ -48,6 +50,7 @@ impl ModalMenu {
             chosen_action: None,
             choice_groups,
             pos,
+            override_dims: None,
         }
     }
 
@@ -56,8 +59,14 @@ impl ModalMenu {
         self
     }
 
-    pub fn set_pos(mut self, ctx: &EventCtx, pos: SidebarPos) -> ModalMenu {
+    pub fn set_pos(
+        mut self,
+        ctx: &EventCtx,
+        pos: SidebarPos,
+        override_dims: Option<ScreenDims>,
+    ) -> ModalMenu {
         self.pos = pos;
+        self.override_dims = override_dims;
         self.rebuild_menu(ctx);
         self
     }
@@ -135,6 +144,7 @@ impl ModalMenu {
             false,
             true,
             self.pos.pos(),
+            self.override_dims.clone(),
             ctx.canvas,
         );
         menu.mark_all_inactive();

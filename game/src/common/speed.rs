@@ -37,7 +37,7 @@ impl SpeedControls {
             ]],
             ctx,
         )
-        .set_pos(ctx, SidebarPos::below(&slider));
+        .set_pos(ctx, SidebarPos::below(&slider), None);
         slider.snap_above(&menu);
 
         SpeedControls {

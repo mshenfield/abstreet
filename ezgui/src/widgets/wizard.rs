@@ -288,6 +288,7 @@ impl<'a, 'b> WrappedWizard<'a, 'b> {
                 true,
                 false,
                 Position::ScreenCenter,
+                None,
                 self.ctx.canvas,
             );
             for label in inactive_labels {

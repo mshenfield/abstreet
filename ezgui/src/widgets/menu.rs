@@ -22,6 +22,8 @@ pub struct Menu<T: Clone> {
     pos: Position,
     top_left: ScreenPt,
     total_width: f64,
+    // TODO Height isn't used. Too many cases with only a prompt, no buttons
+    override_dims: Option<ScreenDims>,
     // dy1 values of the separator half-rows
     separators: Vec<f64>,
     icon_selected: bool,
@@ -51,6 +53,7 @@ impl<T: Clone> Menu<T> {
         keys_enabled: bool,
         hideable: bool,
         pos: Position,
+        override_dims: Option<ScreenDims>,
         canvas: &Canvas,
     ) -> Menu<T> {
         let mut used_keys = HashSet::new();
@@ -118,6 +121,7 @@ impl<T: Clone> Menu<T> {
             hidden: false,
             top_left,
             total_width,
+            override_dims,
             separators,
             icon_selected: false,
         }
@@ -451,8 +455,8 @@ impl<T: Clone> Menu<T> {
         self.top_left = self
             .pos
             .get_top_left(canvas, ScreenDims::new(total_width, total_height));
-        self.total_width = total_width;
-        self.prompt.override_width = Some(total_width);
+        self.total_width = self.override_dims.map(|d| d.width).unwrap_or(total_width);
+        self.prompt.override_width = Some(self.total_width);
     }
 
     fn get_expand_icon(&self, canvas: &Canvas) -> Circle {
