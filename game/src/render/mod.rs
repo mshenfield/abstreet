@@ -72,7 +72,15 @@ pub fn draw_vehicle(
     use_textures: bool,
 ) -> Box<dyn Renderable> {
     if input.id.1 == VehicleType::Bike {
-        Box::new(DrawBike::new(input, map, prerender, cs, acs))
+        Box::new(DrawBike::new(
+            input,
+            map,
+            prerender,
+            canvas,
+            cs,
+            acs,
+            use_textures,
+        ))
     } else {
         Box::new(DrawCar::new(
             input,
@@ -126,5 +134,35 @@ impl DrawOptions {
 
     pub fn color(&self, id: ID) -> Option<Color> {
         self.override_colors.get(&id).cloned()
+    }
+}
+
+pub fn osm_rank_to_unzoomed_color(cs: &ColorScheme, rank: usize) -> Color {
+    if rank >= 16 {
+        cs.get_def("unzoomed highway road", Color::rgb(232, 146, 162))
+    } else if rank >= 6 {
+        cs.get_def("unzoomed arterial road", Color::rgb(255, 199, 62))
+    } else {
+        cs.get_def("unzoomed residential road", Color::WHITE)
+    }
+}
+
+pub fn osm_rank_to_zoomed_color(cs: &ColorScheme, rank: usize) -> Color {
+    if rank >= 16 {
+        cs.get_def("zoomed residential road", Color::from_hex("#7c7c7c"))
+    } else if rank >= 6 {
+        cs.get_def("zoomed highway road", Color::from_hex("#2a2a2a"))
+    } else {
+        cs.get_def("zoomed arterial road", Color::from_hex("#5b5b5b"))
+    }
+}
+
+pub fn osm_rank_to_road_center_line_color(cs: &ColorScheme, rank: usize) -> Color {
+    if rank >= 16 {
+        cs.get_def("residential center line", Color::from_hex("#f4da22"))
+    } else if rank >= 6 {
+        cs.get_def("highway center line", Color::from_hex("#db952e"))
+    } else {
+        cs.get_def("arterial center line", Color::from_hex("#d8b830"))
     }
 }

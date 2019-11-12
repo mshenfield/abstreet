@@ -41,13 +41,18 @@ impl UI {
                 ("assets/ui/speed_up.png", TextureType::Stretch),
             ];
             let skip_textures = if flags.textures {
+                // TODO Water and grass textures look terrible, but leave in to test tiling.
                 textures.extend(vec![
-                    ("assets/water_texture.png", TextureType::Tile),
-                    ("assets/grass_texture.png", TextureType::Tile),
+                    //("assets/water_texture.png", TextureType::Tile),
+                    //("assets/grass_texture.png", TextureType::Tile),
                     ("assets/pedestrian.png", TextureType::Stretch),
                     ("assets/car.png", TextureType::CustomUV),
+                    ("assets/bike.png", TextureType::CustomUV),
                 ]);
-                Vec::new()
+                vec![
+                    ("assets/water_texture.png", cs.get("water")),
+                    ("assets/grass_texture.png", cs.get("grass")),
+                ]
             } else {
                 vec![
                     (
@@ -60,6 +65,7 @@ impl UI {
                     ),
                     ("assets/pedestrian.png", Color::rgb(51, 178, 178)),
                     ("assets/car.png", Color::CYAN),
+                    ("assets/bike.png", Color::CYAN),
                 ]
             };
 
