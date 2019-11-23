@@ -290,7 +290,6 @@ fn is_road(tags: &BTreeMap<String, String>) -> bool {
         "bridleway",
         "steps",
         "path",
-        "cycleway",
         "proposed",
         "construction",
         // This one's debatable. Includes alleys.
